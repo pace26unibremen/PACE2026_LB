@@ -14,6 +14,11 @@ namespace graph
     /// \param path to newick file
     std::shared_ptr<Instance> ReadInstance(const std::filesystem::path& path);
 
+    /// \brief Reads an instance from a stdin.
+    /// Expects newick format.
+    /// \param inputStream of instances
+    std::shared_ptr<Instance> ReadInstance(std::istream& inputStream);
+
     /// \brief Writes an instance to a stream.
     /// Writes in newick format.
     /// \param instance the instance to write

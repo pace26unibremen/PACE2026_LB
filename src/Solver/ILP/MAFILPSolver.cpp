@@ -1,0 +1,87 @@
+#include "MAFILPSolver.hpp"
+
+#include <cassert>
+#include <stdexcept> 
+
+// TODO: Include concrete solver headers once implemented
+
+namespace solver {
+
+// Constructor...
+MAFILPSolver::MAFILPSolver(const std::shared_ptr<graph::Instance>& instance,
+                             ILPSolverType solverType)
+    : AbstractSolver(instance)
+{
+    ilpSolver = createSolver(solverType);
+}
+
+// =============================================================================
+// solve
+// =============================================================================
+std::shared_ptr<graph::Forest> MAFILPSolver::solve()
+{
+    ILPProblem problem = buildProblem();
+    ILPSolution solution        = solveProblem(problem);
+    std::vector<int> cutEdges   = extractCutEdges(solution);
+    return reconstructMAF(cutEdges);
+}
+
+
+ILPProblem MAFILPSolver::buildProblem() const
+{
+    // Instance is a vector of forests...
+    // NOTE: Currently ILP Formulation is only valid for binary MAF-Problem...
+    // DEFAULT: Take first two forests as inputs...
+    assert(instance->size() == 2);
+
+    ILPFormulation formulation((*instance)[0], (*instance)[1]);
+    return formulation.build();
+}
+
+ILPSolution MAFILPSolver::solveProblem(const ILPProblem problem) const
+{
+    return ilpSolver->solve(problem);
+}
+
+
+std::vector<int> MAFILPSolver::extractCutEdges(const ILPSolution& solution) const
+{
+    std::vector<int> cutEdges;
+
+    if(!solution.feasible)
+        return cutEdges;
+
+    for(int i = 0; i < (int)solution.solValues.size(); ++i)
+    {
+        if(solution.solValues[i] > 0.5)
+            cutEdges.push_back(i);
+    }
+
+    return cutEdges;
+}
+
+std::shared_ptr<graph::Forest> MAFILPSolver::reconstructMAF(const std::vector<int>& cutEdges) const
+{
+    // TODO: Implement MAF reconstruction from cut edges
+    // Needs to:
+    // 1. Apply cut edges to instance[0]
+    // 2. Return resulting forest
+    return nullptr;
+}
+
+std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solverType)
+{
+    switch(solverType)
+    {
+        // TODO: Uncomment once concrete solvers are implemented
+        // case ILPSolverType::SCIP:       return std::make_unique<ILPSolverSCIP>(problem);
+        // case ILPSolverType::CPLEX:      return std::make_unique<ILPSolverCPLEX>(problem);
+        // case ILPSolverType::GLPK:       return std::make_unique<ILPSolverGLPK>(problem);
+        // case ILPSolverType::EvalMaxSAT: return std::make_unique<EvalMaxSATSolver>(problem);
+        // case ILPSolverType::HittingSet: return std::make_unique<HittingSetSolver>(problem);
+        default:
+            throw std::invalid_argument("MAFILPSolver: Unknown ILP solver type");
+    }
+}
+
+}  // namespace solver

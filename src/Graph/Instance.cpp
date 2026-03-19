@@ -8,6 +8,7 @@
 #include "Forest.hpp"
 #include "ForestIO.hpp"
 
+
 std::shared_ptr<graph::Instance> graph::ReadInstance(const std::filesystem::path& path)
 {
     if (path.empty())
@@ -19,17 +20,21 @@ std::shared_ptr<graph::Instance> graph::ReadInstance(const std::filesystem::path
     {
         throw std::invalid_argument("Instance : ReadInstance : unable to open file");
     }
-
+    return ReadInstance(file);
+    // File stream will be closed when going out of scope
+}
+std::shared_ptr<graph::Instance> graph::ReadInstance(std::istream& inputStream)
+{
     auto result = std::make_shared<Instance>();
-
     int numberOfForests = -1;
     int numberOfTerminals = -1;
-
+    // Use regex to find #p {t} {n} in the input stream, that provides the number of trees (t) and terminals (n)
     static const std::regex regex_header = std::regex(R"(#p\s(\d+)\s(\d+)\s*)");
     std::smatch match;
     std::string line;
-    while(getline(file, line))
+    while(std::getline(inputStream, line))
     {
+        // If match is found, extract number of forests and terminals
         if (std::regex_match(line, match, regex_header))
         {
             numberOfForests = std::stoi(match[1]);
@@ -37,20 +42,22 @@ std::shared_ptr<graph::Instance> graph::ReadInstance(const std::filesystem::path
             break;
         }
     }
-
     if(numberOfForests >= 0)
     {
+        // Read each forest from the input stream
         result->reserve(numberOfForests);
         for(int i = 0; i < numberOfForests; i++)
         {
-            auto fi_ptr = std::make_shared<Forest>(ForestIO::ReadNewick(file, numberOfTerminals));
+            auto fi_ptr = std::make_shared<Forest>(ForestIO::ReadNewick(inputStream, numberOfTerminals));
             result->emplace_back(fi_ptr);
         }
     }
     else
     {
+        // If no header found, or the number of forests is invalid, throw an error
         throw std::invalid_argument("Instance : no header expression \"#p {t} {n}\"");
     }
+    // Return the constructed instance
     return result;
 }
 

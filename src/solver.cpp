@@ -1,7 +1,28 @@
 #include "Solver/BranchingSolver.hpp"
 #include <fstream>
+#include <iostream>
+
+void runOnStream(std::istream& inStream, std::ostream& outStream) {
+    // Start Timer
+    auto startTime = std::clock();
+    auto instance = graph::ReadInstance(inStream);
+    auto solver = solver::BranchingSolver(instance);
+    auto solution = solver.solve();
+    auto endTime = std::clock();
+    auto time_delta_ms = ((double) (endTime - startTime)) / ((double) CLOCKS_PER_SEC / 1000.0);
+    outStream << "# t " << time_delta_ms << "\n# s " << solution->Roots().size() << "\n";
+    solution->write(outStream);
+}
 
 int main(int argc, char* argv[]) {
+    if (argc == 1)
+    {
+        // With no arguments, read from stdin and write to stdout for stride benchmark
+        runOnStream(std::cin, std::cout);
+        return 0;
+    }
+
+    // Else run with files
     std::string infile;
     std::string outfile;
 
@@ -17,18 +38,12 @@ int main(int argc, char* argv[]) {
     }
     else
     {
-        return -1;
+        throw std::invalid_argument("Wrong number of arguments");
     }
 
-    auto t0 = std::clock();
-    auto i = graph::ReadInstance(infile);
-    auto solver = solver::BranchingSolver(i);
-    auto solution = solver.solve();
-    auto t1 = std::clock();
-    auto t_delta_ms = ((double) (t1 - t0)) / ((double) CLOCKS_PER_SEC / 1000.0);
+    std::ifstream inStream(infile);
     std::ofstream outStream(outfile);
-    outStream << "# t " << t_delta_ms << "\n# s " << solution->Roots().size() << "\n";
-    solution->write(outStream);
+    runOnStream(inStream, outStream);
 
     return 0;
 }
