@@ -10,5 +10,5 @@ add_executable(solver_exec solver.cpp)
 target_link_libraries(solver_exec PRIVATE Solver Graph Cluster)
 set_target_properties(solver_exec PROPERTIES 
     OUTPUT_NAME "solver"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    # RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
