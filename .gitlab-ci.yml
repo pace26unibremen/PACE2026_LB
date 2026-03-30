@@ -51,7 +51,7 @@ build-solver:
     - ninja
     # Check that the resulting binary is indeed statically linked 
     - |
-      FILE_OUT=$(file bin/solver) 
+      FILE_OUT=$(file src/solver) 
       echo "$FILE_OUT"
       if ! echo "$FILE_OUT" | grep -q 'statically linked'; then
         echo "src/solver is not statically linked" >&2
