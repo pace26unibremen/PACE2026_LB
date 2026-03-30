@@ -60,12 +60,14 @@ build-solver:
   artifacts:
     expire_in: never
     paths:
-      - build/src/solver
+      - build/bin/solver    # Can be overwritten in MR, just for my local macOS system...
       - build/tests/ForestIOTests
       - build/tests/ForestEqualTests
       - build/tests/ForestSubforestTests
       - build/tests/DeleteEdgeActionTests
       - build/tests/BranchingSolverSimpleTests
+      - build/tests/ILP/TreeUtilsTests     
+      - build/tests/ILP/ILPFormulationTests
 
 build-solver-windows:
   stage: build
@@ -109,6 +111,22 @@ test-branching-solver:
   script:
     - ./BranchingSolverSimpleTests --reporter junit -o BranchingSolverSimpleTests-results.xml
 
+test-ilp-tree-utils:
+  extends: .test-base
+  before_script:
+    - cd build/tests/ILP/
+    - chmod +x TreeUtilsTests
+  script:
+    - ./TreeUtilsTests --reporter junit -o TreeUtilsTests-results.xml
+
+test-ilp-formulation:
+  extends: .test-base
+  before_script:
+    - cd build/tests/ILP/
+    - chmod +x ILPFormulationTests
+  script:
+    - ./ILPFormulationTests --reporter junit -o ILPFormulationTests-results.xml
+
 pages:
   image: alpine:3.20
   stage: docs
@@ -117,6 +135,8 @@ pages:
     - test-actions
     - test-graph-representation
     - test-branching-solver
+    - test-ilp-tree-utils       
+    - test-ilp-formulation
   script:
     # Install Doxygen + Graphviz
     - apk add --no-cache doxygen graphviz ttf-freefont py3-pip
