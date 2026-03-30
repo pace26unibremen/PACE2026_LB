@@ -6,14 +6,14 @@
 
 namespace solver {
 
-int getRootIndex(std::shared_ptr<graph::Forest> forest)
+int getRootIndex(graph::Forest& forest)
 {
     int rootIndex = -1;
     int rootCount = 0;
-
-    for(int i = 0; i < (int)forest->Nodes().size(); ++i)
+    int nNodes = forest.Nodes().size();
+    for(int i = 0; i < nNodes; ++i)
     {
-        if(forest->Nodes()[i].parent == nullptr)
+        if(forest.Nodes()[i].parent == nullptr)
         {
             rootIndex = i;
             rootCount++;
@@ -21,7 +21,8 @@ int getRootIndex(std::shared_ptr<graph::Forest> forest)
     }
 
     // Exactly one root node must exist
-    assert(rootCount == 1);
+    if(rootCount > 1)
+        throw std::logic_error("TreeUtils::getRootIndex: multiple roots found");
 
     if(rootIndex == -1)
         throw std::logic_error("TreeUtils::getRootIndex: no root node found");
@@ -62,6 +63,19 @@ std::unordered_map<const graph::Node*, int> buildNodeToIndexMap(const graph::For
     return nodeToIndex;
 }
 
+std::unordered_map<int, graph::Node*> buildIndexToNodeMap(graph::Forest& forest)
+{
+    std::unordered_map<int, graph::Node*> indexToNode;
+
+    for(int i = 0; i < (int)forest.Nodes().size(); ++i)
+        indexToNode[i] = &forest.Nodes()[i];
+
+    // Each index should have a unique node...
+    assert(indexToNode.size() == forest.Nodes().size());
+
+    return indexToNode;
+}
+
 // Checks whether the paths between two pairs of leaves are edge-disjoint.
 // Computes both paths via getPath and checks whether their intersection is empty.
 // Returns true if the paths share no common edges, false otherwise.
@@ -71,21 +85,14 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
                           cluster::LeastCommonAncestor& lca,
                           const std::unordered_map<const graph::Node*, int>& nodeToIndex)
 {
-    // All Labels should be different from each other...
-    assert(lpair1 != rpair1);
-    assert(lpair2 != rpair2);
-    assert(lpair1 != lpair2);
-    assert(lpair1 != rpair2);
-    assert(rpair1 != lpair2);
-    assert(rpair1 != rpair2);
 
-    // Idea: Calculate both Paths between Pairs and checker wether intersection of paths is empty...
+    // Idea: Calculate both Paths between pairs and check wether intersection of paths is empty...
     std::set<int> path1 = getPath(forest, lpair1, rpair1, lca, nodeToIndex);
     std::set<int> path2 = getPath(forest, lpair2, rpair2, lca, nodeToIndex);
 
-    // Paths should not be empty...
-    assert(!path1.empty());
-    assert(!path2.empty());
+    // If one path is empty throw logic_error...
+    if (path1.empty() || path2.empty())
+        throw std::logic_error("TreeUtils::areTwoPathsDisjoint: at least one path is empty!");
 
     std::set<int> intersection;
     std::set_intersection(path1.begin(), path1.end(),
@@ -104,10 +111,13 @@ std::set<int> getPath(const graph::Forest& forest,
                       cluster::LeastCommonAncestor& lca,
                       const std::unordered_map<const graph::Node*, int>& nodeToIndex)
 {
-    // Labels should exist and be unique...
+    std::set<int> edges;
+    // Labels should exist...
     assert(forest.LabelToTerminal().count(leaf1) > 0);
     assert(forest.LabelToTerminal().count(leaf2) > 0);
-    assert(leaf1 != leaf2);
+    
+    if (leaf1 == leaf2)
+        return edges;
 
     // Get LCA...
     const graph::Node* lcaNode = lca.getLeastCommonAncestor(
@@ -117,8 +127,6 @@ std::set<int> getPath(const graph::Forest& forest,
 
     // LCA should exist...
     assert(lcaNode != nullptr);
-
-    std::set<int> edges;
 
     // Path from leaf1 to LCA...
     const graph::Node* current = forest.LabelToTerminal().at(leaf1);
@@ -143,6 +151,55 @@ std::set<int> getPath(const graph::Forest& forest,
     // Set of edge indices should not be empty...
     assert(!edges.empty());
     return edges;
+}
+
+bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned int leaf3,
+                        const graph::Forest& forest1,
+                        const graph::Forest& forest2,
+                        cluster::LeastCommonAncestor& lca1,
+                        cluster::LeastCommonAncestor& lca2, 
+                        const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
+                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
+{   
+    // Forests or LCAs should not be nullpointers...
+    assert(forest1.isValid());
+    assert(forest2.isValid());
+
+    // Labels should exist in both forests...
+    assert(forest1.LabelToTerminal().count(leaf1) > 0);
+    assert(forest1.LabelToTerminal().count(leaf2) > 0);
+    assert(forest1.LabelToTerminal().count(leaf3) > 0);
+    assert(forest2.LabelToTerminal().count(leaf1) > 0);
+    assert(forest2.LabelToTerminal().count(leaf2) > 0);
+    assert(forest2.LabelToTerminal().count(leaf3) > 0);
+
+    // If two leaves are equal throw logic_error...
+    if (leaf1 == leaf2 || leaf1 == leaf3 || leaf2 == leaf3)
+        throw std::logic_error("TreeUtils::checkIncompatibleTriple: at least two leafs are equal");
+
+    bool fIncTriple = false;
+
+    int lcaij1 = getLCA(leaf1, leaf2, forest1, lca1, nodeToIndex1);
+    int lcajk1 = getLCA(leaf2, leaf3, forest1, lca1, nodeToIndex1);
+    int lcaik1 = getLCA(leaf1, leaf3, forest1, lca1, nodeToIndex1);
+    int lcaij2 = getLCA(leaf1, leaf2, forest2, lca2, nodeToIndex2);
+    int lcajk2 = getLCA(leaf2, leaf3, forest2, lca2, nodeToIndex2);
+    int lcaik2 = getLCA(leaf1, leaf3, forest2, lca2, nodeToIndex2);
+
+    if(lcaij1 == lcajk1)
+    {
+        if(lcaij2 != lcajk2) fIncTriple = true;
+    }
+    else if(lcaij1 == lcaik1)
+    {
+        if(lcaij2 != lcaik2) fIncTriple = true;
+    }
+    else
+    {
+        if(lcaik2 != lcajk2) fIncTriple = true;
+    }
+
+    return fIncTriple;
 }
 
 }  // namespace solver

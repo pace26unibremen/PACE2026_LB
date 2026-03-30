@@ -1,4 +1,6 @@
 #include "MAFILPSolver.hpp"
+#include "../Action/DeleteEdgeAction.hpp"
+#include "TreeUtils.hpp"
 
 #include <cassert>
 #include <stdexcept> 
@@ -20,6 +22,10 @@ MAFILPSolver::MAFILPSolver(const std::shared_ptr<graph::Instance>& instance,
 // =============================================================================
 std::shared_ptr<graph::Forest> MAFILPSolver::solve()
 {
+    // TODO: Early-exit if no constraints → trees already compatible, SPR-distance = 0
+    // If problem.nConstraints() == 0, skip solver and return reconstructMAF({})
+    // This avoids calling the ILP solver for trivial instances.
+    
     ILPProblem problem = buildProblem();
     ILPSolution solution        = solveProblem(problem);
     std::vector<int> cutEdges   = extractCutEdges(solution);
@@ -62,11 +68,24 @@ std::vector<int> MAFILPSolver::extractCutEdges(const ILPSolution& solution) cons
 
 std::shared_ptr<graph::Forest> MAFILPSolver::reconstructMAF(const std::vector<int>& cutEdges) const
 {
-    // TODO: Implement MAF reconstruction from cut edges
-    // Needs to:
-    // 1. Apply cut edges to instance[0]
-    // 2. Return resulting forest
-    return nullptr;
+    // Copy of Forest...
+    graph::Forest forest = (*instance)[0]->copy();
+    std::shared_ptr<graph::Forest> forestPtr = std::make_shared<graph::Forest>(forest);
+
+    // Build index map on original forest, to match edges of vector-list...
+    auto indexToNode = buildIndexToNodeMap(*(*instance)[0]);
+
+    // Apply Cut Edges...
+    for (int edgeIndex : cutEdges)
+    {
+        // Edge (Node) should be available...
+        assert(indexToNode.count(edgeIndex) > 0.5);
+        graph::Node* child = indexToNode.at(edgeIndex);
+        DeleteEdgeAction action(child, forestPtr);
+        action.doAction();
+    }
+
+    return forestPtr;
 }
 
 std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solverType)

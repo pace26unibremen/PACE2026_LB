@@ -10,9 +10,6 @@
 namespace cluster
 {
 
-
-
-
 /// \brief This class generates the table of least common ancestors for a given Forest.
 /// It is necessary to generate cluster points.
 class LeastCommonAncestor

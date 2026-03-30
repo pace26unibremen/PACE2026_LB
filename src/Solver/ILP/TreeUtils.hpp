@@ -16,14 +16,20 @@ namespace solver {
 /// \param forest The forest to search in.
 /// \returns Index of the root node in Forest::Nodes().
 /// \throws std::logic_error if no root node is found.
-/// \assert Exactly one root node exists (parent == nullptr).
-int getRootIndex(std::shared_ptr<graph::Forest> forest);
+int getRootIndex(graph::Forest& forest);
 
 /// \brief Builds a map from Node pointer to index in Forest::Nodes().
 /// \note Only valid as long as the Forest is not modified.
 /// \param forest Forest on which the map is built.
-/// \return Map of node index <-> node* in Forest.
+/// \return Map of node* <-> node index in Forest.
 std::unordered_map<const graph::Node*, int> buildNodeToIndexMap(const graph::Forest& forest);
+
+/// \brief Builds a map from index to Node pointer in Forest::Nodes().
+/// \note Not exactly the inverse of buildNodeToIndexMap as it requires a non-const Forest to return non-const Node pointers.
+/// \note Use on a copy of the Forest if the original should remain unchanged.
+/// \param forest Forest on which the map is built.
+/// \return Map of node index <-> node* in Forest.
+std::unordered_map<int, graph::Node*> buildIndexToNodeMap(graph::Forest& forest);
 
 /// \brief Returns the index of the Most Recent Common Ancestor of two leaves.
 /// \param forest Forest, that the leaves belong to.
@@ -32,16 +38,17 @@ std::unordered_map<const graph::Node*, int> buildNodeToIndexMap(const graph::For
 /// \param leaf2 Second Leaf.
 /// \param nodeToIndex Map that helps extract the Index of common ancestor.
 /// \return Most Recent Common Ancestor of both Leaves.
-int getLCA(const graph::Forest& forest, const cluster::LeastCommonAncestor& lca, int leaf1, unsigned int leaf2,
+int getLCA(int leaf1, unsigned int leaf2, const graph::Forest& forest, cluster::LeastCommonAncestor& lca,
             const std::unordered_map<const graph::Node*, int>& nodeToIndex);
 
 /// \brief Returns the set of edge indices on the path between two leaves.
 /// \param forest Forest, that the leaves belong to.
 /// \param lca Precomputed LCA table for Forest.
-/// \param leaf1 First Leaf.
-/// \param leaf2 Second Leaf.
-/// \param nodeToIndex Map that helps extract the Index of edges.
-/// \return Set of edge indices.
+/// \param leaf1 Label of first Leaf.
+/// \param leaf2 Label of second Leaf.
+/// \param nodeToIndex Map that helps extract the Index of edges. 
+/// \note Edge Indizes are different to the labels of leafs!!!
+/// \return Set of edge indices. (empty set if leaf1 == leaf2)
 std::set<int> getPath(const graph::Forest& forest,
                       unsigned int leaf1, unsigned int leaf2,
                       cluster::LeastCommonAncestor& lca,
@@ -61,6 +68,27 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
                           unsigned int lpair2, unsigned int rpair2,
                           cluster::LeastCommonAncestor& lca,
                           const std::unordered_map<const graph::Node*, int>& nodeToIndex);
+
+/// \brief Checks wether Triple of Leaves is topologically incompatible between two trees.
+/// \param forest1 First Tree (Forest) of binary MAF-Problem.
+/// \param forest2 Second Tree (Forest) of binary MAF-Problem.
+/// \param lca1 Precomputed LCA table for forest1.
+/// \param lca2 Precomputed LCA table for forest2.
+/// \param leaf1 Index of First Leaf.
+/// \param leaf2 Index of Second Leaf.
+/// \param leaf3 Index of Third Leaf.
+/// \param nodeToIndex1 Map that helps translating indices to nodes of first forest.
+/// \param nodeToIndex2 Map that helps translating indices to nodes of second forest.
+/// \return true, if triple is incompatible, false otherwise
+[[nodiscard]]
+bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned int leaf3,
+                        const graph::Forest& forest1,
+                        const graph::Forest& forest2,
+                        cluster::LeastCommonAncestor& lca1,
+                        cluster::LeastCommonAncestor& lca2, 
+                        const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
+                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2);
+
 
 }  // namespace solver
 
