@@ -49,9 +49,9 @@ build-solver:
     # Configure CMake to use clang and link statically
     - cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static"
     - ninja
-    # Check that the resulting binary is indeed statically linked
+    # Check that the resulting binary is indeed statically linked 
     - |
-      FILE_OUT=$(file src/solver)
+      FILE_OUT=$(file bin/solver) 
       echo "$FILE_OUT"
       if ! echo "$FILE_OUT" | grep -q 'statically linked'; then
         echo "src/solver is not statically linked" >&2
@@ -60,7 +60,7 @@ build-solver:
   artifacts:
     expire_in: never
     paths:
-      - build/bin/solver    # Can be overwritten in MR, just for my local macOS system...
+      - build/src/solver
       - build/tests/ForestIOTests
       - build/tests/ForestEqualTests
       - build/tests/ForestSubforestTests
