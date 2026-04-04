@@ -43,7 +43,7 @@ build-solver:
   stage: build
   image: alpine:3.20
   script:
-    - apk add --no-cache cmake ninja clang musl-dev libc++-dev git file
+    - apk add --no-cache cmake ninja clang musl-dev libc++-dev git file zlib-dev
     - mkdir -p build
     - cd build
     # Configure CMake to use clang and link statically
