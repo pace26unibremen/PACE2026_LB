@@ -4,12 +4,16 @@ file (GLOB solver_header *.hpp)
 file(GLOB ilp_source ILP/*.cpp)
 file(GLOB ilp_header ILP/*.hpp)
 
+file(GLOB ilp_interfaces_source ILP/Interfaces/*.cpp)
+file(GLOB ilp_interfaces_header ILP/Interfaces/*.hpp)
+
 add_library(Solver 
         ${solver_source}
         ${ilp_source}
+        ${ilp_interfaces_source}
         Rule/ChainReductionRule.cpp
         Rule/ChainReductionRule.h)
-target_link_libraries(Solver Graph Cluster)
+target_link_libraries(Solver Graph Cluster EvalMaxSAT)
 
 set_target_properties(Solver PROPERTIES
         VERSION ${PROJECT_VERSION}

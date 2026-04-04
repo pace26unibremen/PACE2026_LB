@@ -2,6 +2,9 @@
 #include "../Action/DeleteEdgeAction.hpp"
 #include "TreeUtils.hpp"
 
+// Solver-Header...
+#include "Interfaces/EvalMaxSATSolver.hpp"
+
 #include <cassert>
 #include <stdexcept> 
 
@@ -73,7 +76,7 @@ std::shared_ptr<graph::Forest> MAFILPSolver::reconstructMAF(const std::vector<in
     std::shared_ptr<graph::Forest> forestPtr = std::make_shared<graph::Forest>(forest);
 
     // Build index map on original forest, to match edges of vector-list...
-    auto indexToNode = buildIndexToNodeMap(*(*instance)[0]);
+    auto indexToNode = buildIndexToNodeMap(*forestPtr);
 
     // Apply Cut Edges...
     for (int edgeIndex : cutEdges)
@@ -93,11 +96,11 @@ std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solv
     switch(solverType)
     {
         // TODO: Uncomment once concrete solvers are implemented
-        // case ILPSolverType::SCIP:       return std::make_unique<ILPSolverSCIP>(problem);
-        // case ILPSolverType::CPLEX:      return std::make_unique<ILPSolverCPLEX>(problem);
-        // case ILPSolverType::GLPK:       return std::make_unique<ILPSolverGLPK>(problem);
-        // case ILPSolverType::EvalMaxSAT: return std::make_unique<EvalMaxSATSolver>(problem);
-        // case ILPSolverType::HittingSet: return std::make_unique<HittingSetSolver>(problem);
+        // case ILPSolverType::SCIP:       return std::make_unique<ILPSolverSCIP>();
+        // case ILPSolverType::CPLEX:      return std::make_unique<ILPSolverCPLEX>();
+        // case ILPSolverType::GLPK:       return std::make_unique<ILPSolverGLPK>();
+        case ILPSolverType::EvalMaxSAT: return std::make_unique<EvalMaxSATSolver>();
+        // case ILPSolverType::HittingSet: return std::make_unique<HittingSetSolver>();
         default:
             throw std::invalid_argument("MAFILPSolver: Unknown ILP solver type");
     }

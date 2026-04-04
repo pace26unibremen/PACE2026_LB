@@ -10,4 +10,4 @@ add_library(ILP
     ${interfaces_source}
 )
 
-target_link_libraries(ILP Graph Cluster)
+target_link_libraries(ILP Graph Cluster EvalMaxSAT)

@@ -33,5 +33,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -Wall")
 set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS_COVERAGE}  -fprofile-instr-generate -fcoverage-mapping")
 set(CMAKE_CXX_FLAGS_PROFILING  "${CMAKE_CXX_FLAGS_PROFILING}  -O2 -g -gline-tables-only -fdebug-info-for-profiling -funique-internal-linkage-names")
 
+add_subdirectory(lib)
 add_subdirectory(src)
 add_subdirectory(tests)
+
