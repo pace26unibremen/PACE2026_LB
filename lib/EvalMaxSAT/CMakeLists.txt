@@ -15,7 +15,7 @@ endif()
 
 add_subdirectory(lib/MaLib)
 add_subdirectory(lib/cadical)
-add_subdirectory(lib/glucose)
+#add_subdirectory(lib/glucose) # disabled - not compatible
 add_subdirectory(lib/EvalMaxSAT)
 
 #add_subdirectory(main)

@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(public_libs
 	MaLib
-    glucose
+    # glucose # disabled - not compatible
     cadical
 )
 

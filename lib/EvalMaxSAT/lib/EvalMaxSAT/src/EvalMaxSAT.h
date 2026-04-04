@@ -12,7 +12,7 @@
 #include "Chrono.h"
 #include "coutUtil.h"
 #include "cadicalinterface.h"
-#include "glucoseinterface.h"
+// #include "glucoseinterface.h" not compatible
 #include "cardincremental.h"
 #include "rand.h"
 #include "mcqd.h"
