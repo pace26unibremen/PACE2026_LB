@@ -7,7 +7,7 @@
 namespace solver
 {
 
-/// \brief Represents a Varibale for ILP Formulation.
+/// \brief Represents a Variable for ILP Formulation.
 struct ILPVariable
 {
     /// \brief Variable number (important to match with constraints).

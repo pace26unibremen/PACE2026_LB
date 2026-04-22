@@ -15,7 +15,6 @@ namespace solver {
 /// \brief Available ILP solver.
 enum class ILPSolverType {
     SCIP,
-    CPLEX,
     EvalMaxSAT,
     HittingSet
 };

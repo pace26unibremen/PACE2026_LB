@@ -47,7 +47,7 @@ build-solver:
     - mkdir -p build
     - cd build
     # Configure CMake to use clang and link statically
-    - cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static"
+    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static"
     - ninja
     # Check that the resulting binary is indeed statically linked 
     - |

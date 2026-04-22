@@ -3,10 +3,16 @@
 #include "TreeUtils.hpp"
 
 // Solver-Header...
+#ifdef USE_EVALMAXSAT
 #include "Interfaces/EvalMaxSATSolver.hpp"
+#endif
+#ifdef USE_SCIP
+#include "Interfaces/SCIPSolver.hpp"
+#endif
 
 #include <cassert>
 #include <stdexcept> 
+#include <iostream>
 
 // TODO: Include concrete solver headers once implemented
 
@@ -31,7 +37,9 @@ std::shared_ptr<graph::Forest> MAFILPSolver::solve()
     
     ILPProblem problem = buildProblem();
     ILPSolution solution        = solveProblem(problem);
+    std::cout << "After Solve, returned to MAFILPSolver" << std::endl;
     std::vector<int> cutEdges   = extractCutEdges(solution);
+    std::cout << "After Extract Cut Edges" << std::endl;
     return reconstructMAF(cutEdges);
 }
 
@@ -96,10 +104,18 @@ std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solv
     switch(solverType)
     {
         // TODO: Uncomment once concrete solvers are implemented
-        // case ILPSolverType::SCIP:       return std::make_unique<ILPSolverSCIP>();
-        // case ILPSolverType::CPLEX:      return std::make_unique<ILPSolverCPLEX>();
-        // case ILPSolverType::GLPK:       return std::make_unique<ILPSolverGLPK>();
-        case ILPSolverType::EvalMaxSAT: return std::make_unique<EvalMaxSATSolver>();
+        case ILPSolverType::SCIP:
+            #ifdef USE_SCIP
+                return std::make_unique<SCIPSolver>();
+            #else
+                throw std::runtime_error("SCIP not available - rebuild with USE_SCIP");
+            #endif
+        case ILPSolverType::EvalMaxSAT: 
+            #ifdef USE_EVALMAXSAT
+                return std::make_unique<EvalMaxSATSolver>();
+            #else
+                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_SCIP");
+            #endif
         // case ILPSolverType::HittingSet: return std::make_unique<HittingSetSolver>();
         default:
             throw std::invalid_argument("MAFILPSolver: Unknown ILP solver type");

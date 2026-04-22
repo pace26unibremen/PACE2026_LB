@@ -22,6 +22,16 @@ option(DEBUG_IMAGE_VIEW_GRAPH
        "Adds option to view graphs as image in debugger"
        OFF)
 
+find_package(SCIP REQUIRED
+        HINTS /usr/local/lib/cmake/scip
+              /usr/local
+)
+
+if(SCIP_FOUND)
+    message(STATUS "USE_SCIP enabled")
+endif()
+
+
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 

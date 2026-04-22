@@ -23,7 +23,7 @@ public:
     ~EvalMaxSATSolver() override = default;
 
     /// \brief Solves the ILP problem using EvalMaxSAT Solver.
-    /// \note Creates EvalMAxSAT instance, starts Solver and writes solution.
+    /// \note Creates EvalMAXSAT instance, starts Solver and writes solution.
     /// \param problem The ILP problem to solve.
     /// \returns The ILP solution. solution.feasible is false if no solution was found.
     [[nodiscard]]
