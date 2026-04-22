@@ -2,7 +2,7 @@ file(GLOB ilp_source *.cpp)
 file(GLOB ilp_header *.hpp)
 
 add_library(ILP_EVALMAXSAT ${ilp_source} Interfaces/EvalMaxSATSolver.cpp)
-target_link_libraries(ILP_EVALMAXSAT EvalMaxSAT)
+target_link_libraries(ILP_EVALMAXSAT Solver Graph Cluster EvalMaxSAT)
 target_compile_definitions(ILP_EVALMAXSAT PRIVATE USE_EVALMAXSAT)
 target_include_directories(ILP_EVALMAXSAT PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/EvalMaxSAT/lib/EvalMaxSAT/src
@@ -12,7 +12,7 @@ target_include_directories(ILP_EVALMAXSAT PRIVATE
 
 if(SCIP_FOUND)
     add_library(ILP_SCIP ${ilp_source} Interfaces/SCIPSolver.cpp)
-    target_link_libraries(ILP_SCIP ${SCIP_LIBRARIES})
+    target_link_libraries(ILP_SCIP Solver Graph Cluster ${SCIP_LIBRARIES})
     target_compile_definitions(ILP_SCIP PRIVATE USE_SCIP)
     target_include_directories(ILP_SCIP PRIVATE ${SCIP_INCLUDE_DIRS})
 endif()
