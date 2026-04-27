@@ -34,6 +34,7 @@ TEST_CASE("MAFILPSolver with EvalMaxSAT on Tiny Test Set", "[MAFILPSolver, EvalM
     }
 }
 
+#ifdef USE_SCIP
 TEST_CASE("MAFILPSolver with SCIP on Tiny Test Set", "[MAFILPSolver, SCIP, Tiny]")
 {
     for (const std::string& f : {"tiny01.nw", "tiny04.nw", "tiny05.nw",
@@ -49,3 +50,4 @@ TEST_CASE("MAFILPSolver with SCIP on Tiny Test Set", "[MAFILPSolver, SCIP, Tiny]
         }
     }
 }
+#endif // USE_SCIP

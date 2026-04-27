@@ -68,6 +68,7 @@ build-solver:
       - build/tests/BranchingSolverSimpleTests
       - build/tests/ILP/TreeUtilsTests     
       - build/tests/ILP/ILPFormulationTests
+      - build/tests/ILP/ILPSolverSimpleTests
 
 build-solver-windows:
   stage: build
@@ -84,6 +85,22 @@ build-solver-windows:
     expire_in: never
     paths:
       - build-win/src/solver.exe
+
+build-solver-scip:
+  stage: build
+  image: jurinwb/pace26-scip-builder:latest
+  script:
+    - apt-get update && apt-get install -y cmake ninja-build clang git zlib1g-dev
+    - mkdir -p build-scip
+    - cd build-scip
+    - cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+    - ninja solver_scip ILPSolverSimpleTests
+  artifacts:
+    expire_in: never
+    paths:
+      - build-scip/src/solver_scip
+      - build-scip/tests/ILP/ILPSolverSimpleTests
+  when: manual
 
 test-graph-representation:
   extends: .test-base
@@ -110,6 +127,28 @@ test-branching-solver:
     - chmod +x BranchingSolverSimpleTests
   script:
     - ./BranchingSolverSimpleTests --reporter junit -o BranchingSolverSimpleTests-results.xml
+
+test-ilp-solver:
+  extends: .test-base
+  dependencies:
+    - build-solver
+  before_script:
+    - cd build/tests/ILP/
+    - chmod +x ILPSolverSimpleTests
+  script:
+    - ./ILPSolverSimpleTests --reporter junit -o ILPSolverSimpleTests-results.xml
+
+test-ilp-solver-scip:
+  extends: .test-base
+  when: manual
+  image: jurinwb/pace26-scip-builder:latest
+  dependencies:
+    - build-solver-scip
+  before_script:
+    - cd build-scip/tests/ILP/
+    - chmod +x ILPSolverSimpleTests
+  script:
+    - ./ILPSolverSimpleTests --reporter junit -o ILPSolverSimpleTests-results.xml
 
 test-ilp-tree-utils:
   extends: .test-base
