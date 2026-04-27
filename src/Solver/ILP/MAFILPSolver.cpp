@@ -37,9 +37,7 @@ std::shared_ptr<graph::Forest> MAFILPSolver::solve()
     
     ILPProblem problem = buildProblem();
     ILPSolution solution        = solveProblem(problem);
-    std::cout << "After Solve, returned to MAFILPSolver" << std::endl;
     std::vector<int> cutEdges   = extractCutEdges(solution);
-    std::cout << "After Extract Cut Edges" << std::endl;
     return reconstructMAF(cutEdges);
 }
 

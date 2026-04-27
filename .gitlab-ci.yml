@@ -144,9 +144,11 @@ test-ilp-solver-scip:
   dependencies:
     - build-solver-scip
   before_script:
+    - ldconfig
     - cd build-scip/tests/ILP/
     - chmod +x ILPSolverSimpleTests
   script:
+    - ./ILPSolverSimpleTests --reporter console
     - ./ILPSolverSimpleTests --reporter junit -o ILPSolverSimpleTests-results.xml
   artifacts:
     when: always

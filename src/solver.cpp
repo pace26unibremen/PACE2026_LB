@@ -21,13 +21,10 @@ void runOnStream(std::istream& inStream, std::ostream& outStream) {
     #endif
 
     auto solution = solver.solve();
-    std::cout << "After Solve, returned to solver.cpp" << std::endl;
     auto endTime = std::clock();
     auto time_delta_ms = ((double) (endTime - startTime)) / ((double) CLOCKS_PER_SEC / 1000.0);
-    std::cout << "Before Solution is written in solver.cpp" << std::endl;
     outStream << "# t " << time_delta_ms << "\n# s " << solution->Roots().size() << "\n";
     solution->write(outStream);
-    std::cout << "After Solution is written in solver.cpp \n" << std::flush;
 }
 
 int main(int argc, char* argv[]) {

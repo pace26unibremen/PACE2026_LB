@@ -13,7 +13,6 @@ SCIPSolver::SCIPSolver() : scip(nullptr)
 
 ILPSolution SCIPSolver::solve(const ILPProblem problem)
 {
-    std::cout << "Starting solve-function of SCIPSolver" << std::endl;
     // Make sure it is a minimization problem...
     assert(problem.fMinimize);
 
@@ -21,7 +20,6 @@ ILPSolution SCIPSolver::solve(const ILPProblem problem)
 
     // Setup Problem...
     createProblem(problem.nVars(), problem.nConstraints(), problem.fMinimize);
-    std::cout << "Finished Setting up Problem..." << std::endl;
     // Setup Variables...
     for (const ILPVariable& var : problem.vars)
     {   
@@ -32,7 +30,6 @@ ILPSolution SCIPSolver::solve(const ILPProblem problem)
 
         setupVar(var.varNum, var.varName.c_str(), var.objCoeff, var.isBinary);
     }
-    std::cout << "Finished Setting up Variables..." << std::endl;
     // Add Constraints...
     for (const ILPConstraint& constraint : problem.constraints)
     {
@@ -41,19 +38,14 @@ ILPSolution SCIPSolver::solve(const ILPProblem problem)
 
         addConstraint(constraint.conNum, constraint.varIndices, constraint.coeffs, constraint.rhsValue, constraint.isLowerBound);
     }
-    std::cout << "Finished Setting up Constraints..." << std::endl;
 
     // Solve the Problem...
 
     // Start Solve...
     SCIPsolve(scip.get());
 
-    SCIP_STATUS status = SCIPgetStatus(scip.get());
-    std::cout << "SCIP status: " << status << std::endl;
-
     // Retrieve Solution...
     SCIP_SOL* bestSol = SCIPgetBestSol(scip.get());
-    std::cout << "bestSol: " << (bestSol == nullptr ? "nullptr" : "found") << std::endl;
     if (bestSol == nullptr) 
     {
         return sol; // by default solution is not feasible... 
@@ -66,7 +58,6 @@ ILPSolution SCIPSolver::solve(const ILPProblem problem)
     for(int i = 0; i < problem.nVars(); ++i)
         sol.solValues[i] = SCIPgetSolVal(scip.get(), bestSol, vars[i]);
 
-        std::cout << "Finished Solve, Returning to MAFILPSolver..." << std::endl;
     return sol;
 }
 
