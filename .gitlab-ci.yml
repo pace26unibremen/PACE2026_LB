@@ -139,8 +139,7 @@ test-ilp-solver:
     - ./ILPSolverSimpleTests --reporter junit -o ILPSolverSimpleTests-results.xml
 
 test-ilp-solver-scip:
-  extends: .test-base
-  when: manual
+  stage: test
   image: jurinwb/pace26-scip-builder:latest
   dependencies:
     - build-solver-scip
@@ -149,6 +148,12 @@ test-ilp-solver-scip:
     - chmod +x ILPSolverSimpleTests
   script:
     - ./ILPSolverSimpleTests --reporter junit -o ILPSolverSimpleTests-results.xml
+  artifacts:
+    when: always
+    reports:
+      junit: build-scip/tests/ILP/ILPSolverSimpleTests-results.xml
+    expire_in: 1 Month
+  when: manual
 
 test-ilp-tree-utils:
   extends: .test-base
