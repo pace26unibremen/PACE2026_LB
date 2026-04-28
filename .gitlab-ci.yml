@@ -95,7 +95,7 @@ build-solver-scip:
     - mkdir -p build-scip
     - cd build-scip
     - cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-    - ninja solver_scip ILPSolverSimpleTests
+    - ninja solver_scip ILPSolverSCIPTests
   artifacts:
     expire_in: never
     paths:
