@@ -100,7 +100,7 @@ build-solver-scip:
     expire_in: never
     paths:
       - build-scip/src/solver_scip
-      - build/tests/ILP/ILPSolverSCIPTests
+      - build-scip/tests/ILP/ILPSolverSCIPTests
   when: manual
 
 test-graph-representation:
