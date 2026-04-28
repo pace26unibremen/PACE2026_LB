@@ -1,4 +1,3 @@
-
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
 
@@ -33,21 +32,3 @@ TEST_CASE("MAFILPSolver with EvalMaxSAT on Tiny Test Set", "[MAFILPSolver, EvalM
         }
     }
 }
-
-#ifdef USE_SCIP
-TEST_CASE("MAFILPSolver with SCIP on Tiny Test Set", "[MAFILPSolver, SCIP, Tiny]")
-{
-    for (const std::string& f : {"tiny01.nw", "tiny04.nw", "tiny05.nw",
-                                  "tiny06.nw", "tiny07.nw", "tiny08.nw", "tiny10.nw"})
-    {
-        SECTION("solve " + f)
-        {
-            auto instance = graph::ReadInstance(std::string(ILP_TEST_DIR) + f);
-            auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::SCIP);
-            auto solution = solver.solve();
-
-            REQUIRE(solution->Roots().size() == instanceToSolutionSize[f]);
-        }
-    }
-}
-#endif // USE_SCIP

@@ -69,6 +69,7 @@ build-solver:
       - build/tests/ILP/TreeUtilsTests     
       - build/tests/ILP/ILPFormulationTests
       - build/tests/ILP/ILPSolverSimpleTests
+      - build/tests/ILP/ILPSolverEvalMaxSATTests
 
 build-solver-windows:
   stage: build
@@ -99,7 +100,7 @@ build-solver-scip:
     expire_in: never
     paths:
       - build-scip/src/solver_scip
-      - build-scip/tests/ILP/ILPSolverSimpleTests
+      - build/tests/ILP/ILPSolverSCIPTests
   when: manual
 
 test-graph-representation:
@@ -128,34 +129,33 @@ test-branching-solver:
   script:
     - ./BranchingSolverSimpleTests --reporter junit -o BranchingSolverSimpleTests-results.xml
 
-test-ilp-solver:
+test-ilp-solver-evalmaxsat:
   extends: .test-base
   dependencies:
     - build-solver
   before_script:
     - cd build/tests/ILP/
-    - chmod +x ILPSolverSimpleTests
+    - chmod +x ILPSolverEvalMaxSATTests
   script:
-    - ./ILPSolverSimpleTests --reporter junit -o ILPSolverSimpleTests-results.xml
+    - ./ILPSolverEvalMaxSATTests --reporter junit -o ILPSolverEvalMaxSATTests-results.xml
 
 test-ilp-solver-scip:
   stage: test
   image: jurinwb/pace26-scip-builder:latest
+  when: manual
   dependencies:
     - build-solver-scip
   before_script:
     - ldconfig
     - cd build-scip/tests/ILP/
-    - chmod +x ILPSolverSimpleTests
+    - chmod +x ILPSolverSCIPTests
   script:
-    - ./ILPSolverSimpleTests --reporter console
-    - ./ILPSolverSimpleTests --reporter junit -o ILPSolverSimpleTests-results.xml
+    - ./ILPSolverSCIPTests --reporter junit -o ILPSolverSCIPTests-results.xml
   artifacts:
     when: always
     reports:
-      junit: build-scip/tests/ILP/ILPSolverSimpleTests-results.xml
+      junit: build-scip/tests/ILP/ILPSolverSCIPTests-results.xml
     expire_in: 1 Month
-  when: manual
 
 test-ilp-tree-utils:
   extends: .test-base

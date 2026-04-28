@@ -10,25 +10,22 @@ add_test(NAME ILPFormulationTests COMMAND $<TARGET_FILE:ILPFormulationTests>)
 target_compile_definitions(ILPFormulationTests PRIVATE
     ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
 
+# EvalMaxSATTest
+add_executable(ILPSolverEvalMaxSATTests ILPSolverEvalMaxSATTests.cpp)
+target_link_libraries(ILPSolverEvalMaxSATTests PRIVATE 
+    Solver ILP_EVALMAXSAT Graph Cluster Catch2::Catch2WithMain)
+target_compile_definitions(ILPSolverEvalMaxSATTests PRIVATE 
+    USE_EVALMAXSAT
+    ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
+add_test(NAME ILPSolverEvalMaxSATTests COMMAND $<TARGET_FILE:ILPSolverEvalMaxSATTests>)
+
+# ScipTest
 if(SCIP_FOUND)
-    add_executable(ILPSolverSimpleTests ILPSolverSimpleTests.cpp)
-    target_link_libraries(ILPSolverSimpleTests PRIVATE 
-        Solver
-        ILP_EVALMAXSAT 
-        ILP_SCIP
-        Graph Cluster Catch2::Catch2WithMain)
-    target_compile_definitions(ILPSolverSimpleTests PRIVATE 
-        USE_EVALMAXSAT 
+    add_executable(ILPSolverSCIPTests ILPSolverSCIPTests.cpp)
+    target_link_libraries(ILPSolverSCIPTests PRIVATE 
+        Solver ILP_SCIP Graph Cluster Catch2::Catch2WithMain)
+    target_compile_definitions(ILPSolverSCIPTests PRIVATE 
         USE_SCIP
         ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
-    add_test(NAME ILPSolverSimpleTests COMMAND $<TARGET_FILE:ILPSolverSimpleTests>)
-else()
-    add_executable(ILPSolverSimpleTests ILPSolverSimpleTests.cpp)
-    target_link_libraries(ILPSolverSimpleTests PRIVATE 
-        ILP_EVALMAXSAT
-        Graph Cluster Catch2::Catch2WithMain)
-    target_compile_definitions(ILPSolverSimpleTests PRIVATE 
-        USE_EVALMAXSAT
-        ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
-    add_test(NAME ILPSolverSimpleTests COMMAND $<TARGET_FILE:ILPSolverSimpleTests>)
+    add_test(NAME ILPSolverSCIPTests COMMAND $<TARGET_FILE:ILPSolverSCIPTests>)
 endif()
