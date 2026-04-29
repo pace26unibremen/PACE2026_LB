@@ -11,7 +11,7 @@ macro(add_solver_target TARGET_NAME DEFINITIONS LINK_LIBS)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/src"
     )
 endmacro()
-
+    
 # Target 1: BranchingSolver
 add_solver_target(solver_branching "" "Solver;Graph;Cluster")
 if(PIPELINE_BUILD)
@@ -22,6 +22,9 @@ endif()
 
 # Target 2: EvalMaxSAT
 add_solver_target(solver_evalmaxsat "USE_EVALMAXSAT" "Solver;ILP_EVALMAXSAT;Graph;Cluster")
+
+# Target 3: UWrMaxSat
+add_solver_target(solver_uwrmaxsat "USE_UWRMAXSAT" "Solver;ILP_UWRMAXSAT;Graph;Cluster")
 
 # Target 3: SCIP
 if(SCIP_FOUND)

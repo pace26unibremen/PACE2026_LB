@@ -13,13 +13,13 @@ target_include_directories(ILP_EVALMAXSAT PRIVATE
 )
 
 # UWrMaxSat
-# add_library(ILP_UWRMAXSAT ${ilp_source} MAFILPSolver.cpp Interfaces/UWrMaxSatSolver.cpp)
-# target_link_libraries(ILP_UWRMAXSAT Solver Graph Cluster UWrMaxSat)
-# target_compile_definitions(ILP_UWRMAXSAT PRIVATE USE_UWRMAXSAT)
-# target_include_directories(ILP_UWRMAXSAT PRIVATE
-#    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat
-#    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
-# )
+add_library(ILP_UWRMAXSAT ${ilp_source} MAFILPSolver.cpp Interfaces/UWrMaxSatSolver.cpp)
+target_link_libraries(ILP_UWRMAXSAT Solver Graph Cluster UWrMaxSat)
+target_compile_definitions(ILP_UWRMAXSAT PRIVATE USE_UWRMAXSAT)
+target_include_directories(ILP_UWRMAXSAT PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat
+    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
+)
 
 # SCIP
 if(SCIP_FOUND)
