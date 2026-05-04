@@ -39,9 +39,8 @@ if(NOT EXISTS ${CADICAL_LIB_PATH})
         ECHO_OUTPUT_VARIABLE
         ECHO_ERROR_VARIABLE
     )
-
-    execute_process(
-        COMMAND sh -c "cd ${CADICAL_DIR} && ./configure --no-contracts --no-tracing 2>&1; echo 'configure exit: '$?"
+   execute_process(
+        COMMAND sh -c "cd ${CADICAL_DIR} && CXX=/usr/bin/clang++ ./configure --no-contracts --no-tracing 2>&1; echo 'configure exit: '$?"
         ECHO_OUTPUT_VARIABLE
         ECHO_ERROR_VARIABLE
     )
