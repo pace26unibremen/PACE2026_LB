@@ -43,7 +43,7 @@ build-solver:
   stage: build
   image: alpine:3.20
   script:
-    - apk add --no-cache cmake ninja clang musl-dev libc++-dev git file zlib-dev gmp-dev
+    - apk add --no-cache cmake ninja clang musl-dev libc++-dev git file zlib-dev gmp-dev make
     - mkdir -p build
     - cd build
     # Configure CMake to use clang and link statically
@@ -70,6 +70,7 @@ build-solver:
       - build/tests/ILP/ILPFormulationTests
       - build/tests/ILP/ILPSolverSimpleTests
       - build/tests/ILP/ILPSolverEvalMaxSATTests
+      - build/tests/ILP/ILPSolverUWrMaxSatTests
 
 build-solver-windows:
   stage: build
@@ -156,6 +157,16 @@ test-ilp-solver-scip:
     reports:
       junit: build-scip/tests/ILP/ILPSolverSCIPTests-results.xml
     expire_in: 1 Month
+
+test-ilp-solver-uwrmaxsat:
+  extends: .test-base
+  dependencies:
+    - build-solver
+  before_script:
+    - cd build/tests/ILP/
+    - chmod +x ILPSolverUWrMaxSatTests
+  script:
+    - ./ILPSolverUWrMaxSatTests --reporter junit -o ILPSolverUWrMaxSatTests-results.xml
 
 test-ilp-tree-utils:
   extends: .test-base

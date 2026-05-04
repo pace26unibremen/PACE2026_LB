@@ -35,10 +35,14 @@ set(CADICAL_LIB_PATH ${CADICAL_DIR}/build/libcadical.a)
 if(NOT EXISTS ${CADICAL_LIB_PATH})
     message(STATUS "libcadical.a nicht gefunden - baue CaDiCaL...")
     execute_process(
-        COMMAND bash -c "cd ${CADICAL_DIR} && ./configure --no-contracts --no-tracing && make cadical"
+        COMMAND bash -c "cd ${CADICAL_DIR} && CXX=${CMAKE_CXX_COMPILER} ./configure --no-contracts --no-tracing && make cadical"
         RESULT_VARIABLE CADICAL_BUILD_RESULT
+        OUTPUT_VARIABLE CADICAL_BUILD_OUTPUT
+        ERROR_VARIABLE CADICAL_BUILD_ERROR
     )
     if(NOT CADICAL_BUILD_RESULT EQUAL 0)
+        message(STATUS "Output: ${CADICAL_BUILD_OUTPUT}")
+        message(STATUS "Error:  ${CADICAL_BUILD_ERROR}")
         message(FATAL_ERROR "CaDiCaL Build fehlgeschlagen!")
     endif()
 else()
