@@ -9,6 +9,9 @@
 #ifdef USE_SCIP
 #include "Interfaces/SCIPSolver.hpp"
 #endif
+#ifdef USE_UWRMAXSAT
+#include "Interfaces/UWrMaxSatSolver.hpp"
+#endif
 
 #include <cassert>
 #include <stdexcept> 
@@ -112,9 +115,14 @@ std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solv
             #ifdef USE_EVALMAXSAT
                 return std::make_unique<EvalMaxSATSolver>();
             #else
-                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_SCIP");
+                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_EVALMAXSAT");
             #endif
-        // case ILPSolverType::HittingSet: return std::make_unique<HittingSetSolver>();
+        case ILPSolverType::UWrMaxSat: 
+            #ifdef USE_UWRMAXSAT
+                return std::make_unique<UWrMaxSatSolver>();
+            #else
+                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_UWRMAXSAT");
+            #endif
         default:
             throw std::invalid_argument("MAFILPSolver: Unknown ILP solver type");
     }

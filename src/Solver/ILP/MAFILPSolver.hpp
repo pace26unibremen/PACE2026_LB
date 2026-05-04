@@ -16,7 +16,7 @@ namespace solver {
 enum class ILPSolverType {
     SCIP,
     EvalMaxSAT,
-    HittingSet
+    UWrMaxSat
 };
 
 /// \brief Solves the MAF problem exactly via ILP formulation.
