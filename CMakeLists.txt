@@ -21,6 +21,8 @@ message(STATUS "CMake Version: ${CMAKE_VERSION}")
 option(DEBUG_IMAGE_VIEW_GRAPH
        "Adds option to view graphs as image in debugger"
        OFF)
+       
+option(BUILD_UWRMAXSAT "Build UWrMaxSat solver" ON)
 
 find_package(SCIP
         HINTS /usr/local/lib/cmake/scip

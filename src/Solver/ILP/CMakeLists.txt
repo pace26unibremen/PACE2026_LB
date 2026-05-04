@@ -13,26 +13,28 @@ target_include_directories(ILP_EVALMAXSAT PRIVATE
 )
 
 # UWrMaxSat
-add_library(ILP_UWRMAXSAT ${ilp_source} MAFILPSolver.cpp Interfaces/UWrMaxSatSolver.cpp)
-target_link_libraries(ILP_UWRMAXSAT Solver Graph Cluster UWrMaxSat)
-target_compile_definitions(ILP_UWRMAXSAT PRIVATE 
-    USE_UWRMAXSAT
-    CADICAL
-    NDEBUG
-    _FILE_OFFSET_BITS=64
-    __STDC_FORMAT_MACROS
-    __STDC_LIMIT_MACROS
-)
-target_include_directories(ILP_UWRMAXSAT PRIVATE
-    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/cadical/src
-    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat
-    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
-    ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps
-)
-target_compile_options(ILP_UWRMAXSAT PRIVATE
-    "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs/Global.h"
-    "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/Main.h"
-)
+if(BUILD_UWRMAXSAT)
+    add_library(ILP_UWRMAXSAT ${ilp_source} MAFILPSolver.cpp Interfaces/UWrMaxSatSolver.cpp)
+    target_link_libraries(ILP_UWRMAXSAT Solver Graph Cluster UWrMaxSat)
+    target_compile_definitions(ILP_UWRMAXSAT PRIVATE 
+        USE_UWRMAXSAT
+        CADICAL
+        NDEBUG
+        _FILE_OFFSET_BITS=64
+        __STDC_FORMAT_MACROS
+        __STDC_LIMIT_MACROS
+    )
+    target_include_directories(ILP_UWRMAXSAT PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/cadical/src
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps
+    )
+    target_compile_options(ILP_UWRMAXSAT PRIVATE
+        "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs/Global.h"
+        "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/Main.h"
+    )
+endif()
 
 # SCIP
 if(SCIP_FOUND)

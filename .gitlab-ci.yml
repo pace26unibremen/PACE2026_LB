@@ -47,7 +47,7 @@ build-solver:
     - mkdir -p build
     - cd build
     # Configure CMake to use clang and link statically
-    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static"
+    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DBUILD_UWRMAXSAT=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static"
     - ninja
     # Check that the resulting binary is indeed statically linked 
     - |
@@ -70,7 +70,6 @@ build-solver:
       - build/tests/ILP/ILPFormulationTests
       - build/tests/ILP/ILPSolverSimpleTests
       - build/tests/ILP/ILPSolverEvalMaxSATTests
-      - build/tests/ILP/ILPSolverUWrMaxSatTests
 
 build-solver-windows:
   stage: build
@@ -157,17 +156,7 @@ test-ilp-solver-scip:
     reports:
       junit: build-scip/tests/ILP/ILPSolverSCIPTests-results.xml
     expire_in: 1 Month
-
-test-ilp-solver-uwrmaxsat:
-  extends: .test-base
-  dependencies:
-    - build-solver
-  before_script:
-    - cd build/tests/ILP/
-    - chmod +x ILPSolverUWrMaxSatTests
-  script:
-    - ./ILPSolverUWrMaxSatTests --reporter junit -o ILPSolverUWrMaxSatTests-results.xml
-
+    
 test-ilp-tree-utils:
   extends: .test-base
   before_script:

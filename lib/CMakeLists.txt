@@ -2,6 +2,8 @@
 add_subdirectory(EvalMaxSAT)
 
 # UWrMaxSat
-add_subdirectory(UWrMaxSat)
+if(BUILD_UWRMAXSAT)
+    add_subdirectory(UWrMaxSat)
+endif()
 
 # Others

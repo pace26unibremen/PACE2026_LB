@@ -20,13 +20,15 @@ target_compile_definitions(ILPSolverEvalMaxSATTests PRIVATE
 add_test(NAME ILPSolverEvalMaxSATTests COMMAND $<TARGET_FILE:ILPSolverEvalMaxSATTests>)
 
 # UWrMaxSAT Test
-add_executable(ILPSolverUWrMaxSatTests ILPSolverUWrMaxSatTests.cpp)
-target_link_libraries(ILPSolverUWrMaxSatTests PRIVATE
-    Solver ILP_UWRMAXSAT Graph Cluster Catch2::Catch2WithMain)
-target_compile_definitions(ILPSolverUWrMaxSatTests PRIVATE
-    USE_UWRMAXSAT
-    ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
-add_test(NAME ILPSolverUWrMaxSatTests COMMAND $<TARGET_FILE:ILPSolverUWrMaxSatTests>)
+if(BUILD_UWRMAXSAT)
+    add_executable(ILPSolverUWrMaxSatTests ILPSolverUWrMaxSatTests.cpp)
+    target_link_libraries(ILPSolverUWrMaxSatTests PRIVATE
+        Solver ILP_UWRMAXSAT Graph Cluster Catch2::Catch2WithMain)
+    target_compile_definitions(ILPSolverUWrMaxSatTests PRIVATE
+        USE_UWRMAXSAT
+        ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
+    add_test(NAME ILPSolverUWrMaxSatTests COMMAND $<TARGET_FILE:ILPSolverUWrMaxSatTests>)
+endif()
 
 # ScipTest
 if(SCIP_FOUND)

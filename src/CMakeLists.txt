@@ -24,8 +24,9 @@ endif()
 add_solver_target(solver_evalmaxsat "USE_EVALMAXSAT" "Solver;ILP_EVALMAXSAT;Graph;Cluster")
 
 # Target 3: UWrMaxSat
-add_solver_target(solver_uwrmaxsat "USE_UWRMAXSAT" "Solver;ILP_UWRMAXSAT;Graph;Cluster")
-
+if(BUILD_UWRMAXSAT)
+    add_solver_target(solver_uwrmaxsat "USE_UWRMAXSAT" "Solver;ILP_UWRMAXSAT;Graph;Cluster")
+endif()
 # Target 3: SCIP
 if(SCIP_FOUND)
     add_solver_target(solver_scip "USE_SCIP" "Solver;ILP_SCIP;Graph;Cluster")
