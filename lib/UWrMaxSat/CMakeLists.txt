@@ -40,10 +40,12 @@ if(NOT EXISTS ${CADICAL_LIB_PATH})
         ECHO_ERROR_VARIABLE
     )
    execute_process(
-        COMMAND sh -c "cd ${CADICAL_DIR} && CXX=/usr/bin/clang++ ./configure --no-contracts --no-tracing 2>&1; echo 'configure exit: '$?"
+        COMMAND sh -c "cd ${CADICAL_DIR} && CXX=/usr/bin/clang++ ./configure --no-contracts --no-tracing && make cadical 2>&1; echo 'exit: '$?"
+        RESULT_VARIABLE CADICAL_BUILD_RESULT
         ECHO_OUTPUT_VARIABLE
         ECHO_ERROR_VARIABLE
     )
+
     if(NOT CADICAL_BUILD_RESULT EQUAL 0)
         message(STATUS "Output: ${CADICAL_BUILD_OUTPUT}")
         message(STATUS "Error:  ${CADICAL_BUILD_ERROR}")
