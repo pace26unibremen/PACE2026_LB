@@ -34,7 +34,7 @@ private:
     /// Constraints are added as hard clauses (hitting set + root constraint).
     /// \param solver The solver instance to populate.
     /// \param problem The ILP problem to translate.
-    /// \return Vector of Lit (literals) of MsSolver Instance.
+    /// \return Vector of Integers of IPAMIR Instance.
     [[nodiscard]]
     std::vector<int> setup(void* solver, const ILPProblem& problem) const;
 

@@ -98,6 +98,29 @@ target_compile_options(UWrMaxSat PRIVATE
 find_library(GMP_LIBRARY NAMES gmp REQUIRED)
 message(STATUS "GMP gefunden: ${GMP_LIBRARY}")
 
+# ── MaxPre Option ─────────────────────────────────────────────────────────────
+option(USE_MAXPRE "Use MaxPre preprocessor for UWrMaxSat" OFF)
+
+if(USE_MAXPRE)
+    set(MAXPRE_DIR ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/maxpre)
+    set(MAXPRE_LIB_PATH ${MAXPRE_DIR}/src/lib/libmaxpre.a)
+
+    if(NOT EXISTS ${MAXPRE_LIB_PATH})
+        message(FATAL_ERROR "MaxPre library not found at ${MAXPRE_LIB_PATH} - build it first!")
+    endif()
+
+    add_library(maxpre_lib STATIC IMPORTED)
+    set_target_properties(maxpre_lib PROPERTIES
+        IMPORTED_LOCATION ${MAXPRE_LIB_PATH}
+    )
+
+    target_compile_definitions(UWrMaxSat PRIVATE MAXPRE)
+    target_include_directories(UWrMaxSat PRIVATE ${MAXPRE_DIR}/src)
+    target_link_libraries(UWrMaxSat PUBLIC maxpre_lib)
+
+    message(STATUS "MaxPre enabled: ${MAXPRE_LIB_PATH}")
+endif()
+
 # ── Linken ────────────────────────────────────────────────────────────────────
 target_link_libraries(UWrMaxSat
     PUBLIC

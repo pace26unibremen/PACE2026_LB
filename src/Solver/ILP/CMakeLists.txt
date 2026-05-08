@@ -30,6 +30,11 @@ if(BUILD_UWRMAXSAT)
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps
     )
+    if(USE_MAXPRE)
+        target_compile_definitions(ILP_UWRMAXSAT PRIVATE USE_MAXPRE)
+        target_include_directories(ILP_UWRMAXSAT PRIVATE 
+            ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/maxpre/src)
+    endif()
     target_compile_options(ILP_UWRMAXSAT PRIVATE
         "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs/Global.h"
         "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/Main.h"
