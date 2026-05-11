@@ -1,22 +1,26 @@
 workflow:
   rules:
+    # Always run manually triggered pipelines (via UI "Run pipeline")
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
+    # Always run scheduled pipelines
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    # Skip all pipelines triggered by tags
     - if: $CI_COMMIT_TAG
-      when: never  # Skip all pipelines triggered by tags
+      when: never
+    # Skip pipelines for branches with open MRs (handled by MR pipelines, avoids duplicate pipelines)
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-      when: never # Skip pipelines for branches with open MRs (handled by MR pipelines, avoids duplicate pipelines)
+      when: never
     - when: always
 
 # Shared anchor for reuse
 .release-rules: &release-rules
   rules:
-    # Only run on master
-    - if: '$CI_COMMIT_BRANCH != "master"'
-      when: never
-    # Only run on merge commits
-    - if: '$CI_COMMIT_MESSAGE !~ /See merge request/'
-      when: never
-    # Need to invert, as separate rules use or logic
-    - when: on_success
+    # Only run on master branch on merge commits
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /See merge request/'
+      when: on_success
+    - when: never
 
 # All test jobs share the same configuration
 .test-base:
@@ -37,6 +41,7 @@ stages:
   - release_prep
   - release
   - docs
+  - benchmark
 
 # C++ build and tests — build statically with musl
 build-solver:
@@ -54,13 +59,13 @@ build-solver:
       FILE_OUT=$(file src/solver) 
       echo "$FILE_OUT"
       if ! echo "$FILE_OUT" | grep -q 'statically linked'; then
-        echo "src/solver is not statically linked" >&2
+        echo "src/startSolver is not statically linked" >&2
         exit 1
       fi
   artifacts:
     expire_in: never
     paths:
-      - build/src/solver
+      - build/src/startSolver
       - build/tests/ForestIOTests
       - build/tests/ForestEqualTests
       - build/tests/ForestSubforestTests
@@ -341,8 +346,202 @@ release-job:
     assets:
       links:
         - name: 'solver (Linux x86_64 static binary)'
-          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/solver?job=build-solver'
+          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/startSolver?job=build-solver'
           link_type: 'package'
         - name: 'solver (Windows x86_64 static binary)'
-          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build-win/src/solver.exe?job=build-solver-windows'
+          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build-win/src/startSolver.exe?job=build-solver-windows'
           link_type: 'package'
+
+# Build stride from source
+build_stride:
+  stage: build
+  image: rust:1.93
+  script:
+    - apt-get update && apt-get install -y musl-tools
+    - rustup target add x86_64-unknown-linux-musl
+    - git clone https://github.com/manpen/pace26stride.git
+    - cd pace26stride
+    - cargo build --profile smaller-release --target x86_64-unknown-linux-musl
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride
+
+.run_stride_benchmark_template:
+  stage: benchmark
+  image: ubuntu:24.04
+  dependencies:
+    - build-solver
+    - build_stride
+  variables:
+    RUN_BENCHMARK: "none"   # none, quick, full, exact, all
+    RUN_SUFFIX: "" # Can be used on manual runs to change the run name
+    INSTANCES_LST: "all.lst"  # Or full
+    SLURM_SCRIPT: "quick_run.slurm"
+    STRIDE_TIMEOUT: 1800
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}${RUN_SUFFIX}"
+  before_script:
+    - echo "Setting up SSH for HPC access..."
+    - apt-get update && apt-get install -y openssh-client rsync curl jq
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - cp "$SSH_PRIVATE_KEY" ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    - echo "$HPC_HOST_KEY" >> ~/.ssh/known_hosts
+    - chmod 600 ~/.ssh/known_hosts
+    - |
+      cat > ~/.ssh/config << EOF
+      Host hpc
+        HostName $HPC_HOST
+        User $HPC_USER
+        IdentityFile ~/.ssh/id_ed25519
+        StrictHostKeyChecking yes
+      EOF
+    - chmod 600 ~/.ssh/config
+    - ssh hpc "echo 'Connected to HPC!'"
+
+  script:
+    # Remote directory layout:
+    #   ~/pace-bench/shared/.stride-downloads/  -- stride instance cache (shared, read/write)
+    #   ~/pace-bench/shared/stride-logs/        -- merged logs from all runs (permanent)
+    #   ~/pace-bench/shared/slurm-logs/         -- merged slurm stdout/stderr (permanent)
+    #   ~/pace-bench/jobs/$CI_JOB_ID/           -- per-job staging dir (deleted after merge)
+
+    - HPC_JOB_DIR="pace-bench/jobs/$CI_JOB_ID"
+    - HPC_SHARED_DIR="pace-bench/shared"
+    # Ensure all directories exist
+    - ssh hpc "mkdir -p ~/$HPC_JOB_DIR ~/$HPC_SHARED_DIR/.stride-downloads ~/$HPC_SHARED_DIR/stride-logs ~/$HPC_SHARED_DIR/slurm-logs"
+
+    # 1) Prepare and copy files to HPC
+    - mkdir -p hpc_transfer
+    # Prepare .env file for Stride with all necessary variables
+    - |
+      cat > hpc_transfer/.env <<EOF
+        STRIDE_SOLVER="./startSolver"
+        STRIDE_TIMEOUT=$STRIDE_TIMEOUT
+        STRIDE_GRACE=$STRIDE_GRACE
+        STRIDE_DOWNLOADS_PATH="../../shared/.stride-downloads"
+        STRIDE_INSTANCE_ORDER="nodes-trees-asc"
+        STRIDE_RUN_NAME="$STRIDE_RUN_NAME"
+        STRIDE_OPTIMAL=true
+      EOF
+    - cp pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride hpc_transfer/
+    - cp build/src/startSolver hpc_transfer/
+    - cp res/instances/"$INSTANCES_LST" hpc_transfer/instances.lst
+    - cp gitlab-ci/slurm/"$SLURM_SCRIPT"  hpc_transfer/run_stride.slurm
+    - cp gitlab-ci/bash/*.sh hpc_transfer/
+    - tar czf hpc_payload.tgz hpc_transfer
+
+    - scp hpc_payload.tgz hpc:~/$HPC_JOB_DIR
+
+    # 2) Unpack, prepare, and submit job
+    - ssh hpc "cd ~/$HPC_JOB_DIR && tar xzf hpc_payload.tgz --strip-components=1 && chmod +x *.sh *.slurm && rm hpc_payload.tgz"
+    - |
+      SLURM_JOB_ID=$(ssh hpc "
+        set -e
+        cd ~/\"$HPC_JOB_DIR\"
+        JOB_ID=\$(sbatch --chdir=\"\$HOME/$HPC_JOB_DIR\" run_stride.slurm | awk '{print \$4}')
+        echo \"\$JOB_ID\" > last_job.id
+        echo \"\$JOB_ID\"
+      ")
+      echo "Submitted Slurm job: $SLURM_JOB_ID"
+
+    # 3) Monitor job
+    - ssh hpc "bash ~/$HPC_JOB_DIR/monitor_job.sh ~/$HPC_JOB_DIR"
+
+    # 4) Retrieve results
+    - mkdir -p stride-logs
+    - JOB_DIR="~/pace-bench/jobs/$CI_JOB_ID"
+    - rsync -avq --relative "hpc:$JOB_DIR/stride-logs/./*/summary.json" stride-logs/
+    # Copy error logs if they exist; ignore if they don't (e.g. if the job succeeded without errors)
+    - rsync -avq --relative --ignore-missing-args "hpc:$JOB_DIR/stride-logs/./*/solvererror" stride-logs/
+
+    # 5) Resolve run folder from local rsync output
+    - |
+      RUN_FOLDER=$(ls -1d stride-logs/run_* 2>/dev/null | sort | tail -n1 | xargs basename)
+      echo "Resolved run folder: $RUN_FOLDER"
+
+    # 6) Merge logs
+    - ssh hpc "cp -a ~/$HPC_JOB_DIR/stride-logs/. ~/$HPC_SHARED_DIR/stride-logs/"
+    # Move slurm logs (named <jobname>_<slurm_job_id>.out/err via %x_%j)
+    - ssh hpc "mv ~/$HPC_JOB_DIR/run_stride_* ~/$HPC_SHARED_DIR/slurm-logs/ 2>/dev/null || true"
+
+    # 7) Remove staging directory
+    - ssh hpc "rm -rf pace-bench/jobs/$CI_JOB_ID"
+
+    # 8) Check for errors
+    - bash gitlab-ci/bash/check_errors.sh stride-logs/
+
+    # 9) Notify dashboard (best effort, don't fail the job if this fails)
+    - |
+      curl -X POST "$DASHBOARD_WEBHOOK_URL/api/webhook/notify" \
+        -H "X-Webhook-Token: $DASHBOARD_WEBHOOK_SECRET" \
+        -H "Content-Type: application/json" \
+        --data "$(jq -cn \
+          --arg run_name         "$RUN_FOLDER" \
+          --arg commit_sha       "$CI_COMMIT_SHORT_SHA" \
+          --arg branch           "$CI_COMMIT_BRANCH" \
+          --arg commit_message   "$CI_COMMIT_MESSAGE" \
+          --arg commit_author    "$GITLAB_USER_NAME" \
+          --arg commit_timestamp "$CI_COMMIT_TIMESTAMP" \
+          --arg pipeline_url     "$CI_PIPELINE_URL" \
+          '{run_name:$run_name,commit_sha:$commit_sha,branch:$branch,
+            commit_message:$commit_message,commit_author:$commit_author,
+            commit_timestamp:$commit_timestamp,pipeline_url:$pipeline_url}')" \
+
+  artifacts:
+    when: always
+    paths:
+      - stride-logs/
+    expire_in: 1 Month
+
+# Quick: every commit
+run_quick_benchmark:
+  variables:
+    INSTANCES_LST: "all.lst"
+    SLURM_SCRIPT: "quick_run.slurm"
+    STRIDE_TIMEOUT: 120
+    STRIDE_GRACE: 5
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_quick${RUN_SUFFIX}"
+  extends: .run_stride_benchmark_template
+  rules:
+    # Skip if this is a release pipeline (merge into master)
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /Merge request|See merge request/'
+      when: never
+    # If manually triggered from the web UI and the variable is set to quick or all, run the quick benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "quick" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    # Run on all other pipelines (branches, MRs, direct master pushes)
+    - if: '$CI_PIPELINE_SOURCE != "web"'
+      when: on_success
+    - when: never
+
+run_full_benchmark:
+  variables:
+    INSTANCES_LST: "all.lst"
+    SLURM_SCRIPT: "release_run.slurm"
+    STRIDE_TIMEOUT: 900
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_full${RUN_SUFFIX}"
+  extends: .run_stride_benchmark_template
+  rules:
+    # If manually triggered from the web UI and the variable is set to full or all, run the quick benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "full" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    - !reference [ .release-rules, rules ]
+    - when: never
+
+run_exact-track_benchmark:
+  variables:
+    INSTANCES_LST: "pace26_exact_pub_v2.lst"
+    SLURM_SCRIPT: "release_run.slurm"
+    STRIDE_TIMEOUT: 1800
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_exact${RUN_SUFFIX}"
+  extends: .run_stride_benchmark_template
+  rules:
+    # If manually triggered from the web UI and the variable is set to exact or all, run the quick benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "exact" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    - !reference [ .release-rules, rules ]
+    - when: never

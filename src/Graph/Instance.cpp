@@ -35,6 +35,7 @@ std::shared_ptr<graph::Instance> graph::ReadInstance(std::istream& inputStream)
     while(std::getline(inputStream, line))
     {
         // If match is found, extract number of forests and terminals
+        // If match is found, extract number of forests and terminals
         if (std::regex_match(line, match, regex_header))
         {
             numberOfForests = std::stoi(match[1]);

@@ -2,7 +2,7 @@
 #define PACE2026_ABSTRACT_RULE_HPP
 
 #include "../../Graph/Instance.hpp"
-#include "Context.hpp"
+#include "../Context.hpp"
 #include "RuleReturnCode.hpp"
 
 #include <list>

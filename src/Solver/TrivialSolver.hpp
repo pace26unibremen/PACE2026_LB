@@ -14,7 +14,7 @@ class TrivialSolver : AbstractSolver
 
     ~TrivialSolver() override = default;
 
-    std::shared_ptr<graph::Forest> solve() override;
+    bool solve() override;
 };
 
 }  //namespace solver

@@ -1,11 +1,16 @@
 #include "AbstractSolver.hpp"
 
-graph::Instance& solver::AbstractSolver::Instance()
+std::shared_ptr<graph::Instance>& solver::AbstractSolver::Instance()
 {
-    return *this->instance;
+    return this->instance;
 }
 
-const graph::Instance& solver::AbstractSolver::Instance() const
+const std::shared_ptr<graph::Instance>& solver::AbstractSolver::Instance() const
 {
-    return *this->instance;
+    return this->instance;
+}
+
+void solver::AbstractSolver::unapplyReductions()
+{
+    // default do nothing
 }

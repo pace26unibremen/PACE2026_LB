@@ -21,17 +21,20 @@ class AbstractSolver
     virtual ~AbstractSolver() = default;
 
     /// \brief solve the instance
-    virtual std::shared_ptr<graph::Forest> solve() = 0;
+    virtual bool solve() = 0;
+
+    /// \brief Unapplies all reduction rules, that where applied to the instance.
+    virtual void unapplyReductions();
 
     /// \brief reference to instance
     /// \property Instance
     [[nodiscard, maybe_unused]]
-    graph::Instance& Instance();
+    std::shared_ptr<graph::Instance>& Instance();
 
     /// \brief \c const reference to instance
     /// \property Instance
     [[nodiscard, maybe_unused]]
-    const graph::Instance& Instance() const;
+    const std::shared_ptr<graph::Instance>& Instance() const;
 };
 
 } // namespace solver

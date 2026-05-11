@@ -1,5 +1,7 @@
 #include "CutBranchRule.hpp"
 
+#include "../BranchingSolverConfiguration.hpp"
+
 solver::CutBranchRule::CutBranchRule(const std::shared_ptr<graph::Instance>& instance,
                                      const std::shared_ptr<Context>& context) :
     AbstractRule(instance, context, false)
@@ -28,14 +30,27 @@ std::shared_ptr<solver::AbstractRule>
 solver::CutBranchRule::isApplicable(const std::shared_ptr<graph::Instance>& instance,
                                     const std::shared_ptr<Context>& context)
 {
-    for (const auto& f : *instance)
+
+    if (context->branchingSolverConfiguration->boundedDephtSearch)
     {
-        if (f->Roots().size() >=  context->bestSolutionSize)
+        for (const auto& f : *instance)
         {
-            return std::make_shared<solver::CutBranchRule>(instance, context);
+            if (f->Roots().size() >  context->maxSolutionSize)
+            {
+                return std::make_shared<solver::CutBranchRule>(instance, context);
+            }
         }
     }
-
+    else
+    {
+        for (const auto& f : *instance)
+        {
+            if (f->Roots().size() >=  context->bestSolutionSize)
+            {
+                return std::make_shared<solver::CutBranchRule>(instance, context);
+            }
+        }
+    }
     return nullptr;
 }
 

@@ -4,7 +4,7 @@ solver::TrivialSolver::TrivialSolver(const std::shared_ptr<graph::Instance>& ins
     : AbstractSolver(instance)
 {}
 
-std::shared_ptr<graph::Forest> solver::TrivialSolver::solve()
+bool solver::TrivialSolver::solve()
 {
     unsigned int numberOfTerminals = instance->at(0)->TerminalToLabel().size();
 
@@ -23,5 +23,7 @@ std::shared_ptr<graph::Forest> solver::TrivialSolver::solve()
         labelToTerminal->emplace(label,&node);
         index++;
     }
-    return std::make_shared<graph::Forest>(nodes, terminalToLabel, labelToTerminal, roots);
+    *instance = {std::make_shared<graph::Forest>(nodes, terminalToLabel, labelToTerminal, roots)};
+
+    return true;
 }
