@@ -1,4 +1,4 @@
-#if defined(USE_EVALMAXSAT) || defined(USE_SCIP)
+#if defined(USE_EVALMAXSAT) || defined(USE_SCIP) || defined(USE_UWRMAXSAT)
 #include "Solver/ILP/MAFILPSolver.hpp"
 #else
 #include "Solver/BranchingSolver.hpp"
@@ -16,15 +16,17 @@ void runOnStream(std::istream& inStream, std::ostream& outStream) {
         auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::EvalMaxSAT);
     #elif defined(USE_SCIP)
         auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::SCIP);
+    #elif defined(USE_UWRMAXSAT)
+        auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::UWrMaxSat);
     #else
         auto solver = solver::BranchingSolver(instance);
     #endif
 
-    auto solution = solver.solve();
+    auto solved = solver.solve();
     auto endTime = std::clock();
     auto time_delta_ms = ((double) (endTime - startTime)) / ((double) CLOCKS_PER_SEC / 1000.0);
-    outStream << "# t " << time_delta_ms << "\n# s " << solution->Roots().size() << "\n";
-    solution->write(outStream);
+    outStream << "# t " << time_delta_ms << "\n# s " << solver.Instance()->at(0)->Roots().size() << "\n";
+    solver.Instance()->at(0)->write(outStream);
 }
 
 int main(int argc, char* argv[]) {

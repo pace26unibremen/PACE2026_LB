@@ -26,9 +26,10 @@ TEST_CASE("MAFILPSolver with SCIP on Tiny Test Set", "[MAFILPSolver, SCIP, Tiny]
         {
             auto instance = graph::ReadInstance(std::string(ILP_TEST_DIR) + f);
             auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::SCIP);
-            auto solution = solver.solve();
+            auto solved = solver.solve();
 
-            REQUIRE(solution->Roots().size() == instanceToSolutionSize[f]);
+            CHECK(solved);
+            CHECK(solver.Instance()->at(0)->Roots().size() == instanceToSolutionSize[f]);
         }
     }
 }

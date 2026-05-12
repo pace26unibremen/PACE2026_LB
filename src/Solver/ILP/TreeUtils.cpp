@@ -3,6 +3,7 @@
 #include <cassert>
 #include <stdexcept>
 #include <algorithm>
+#include<iostream>
 
 namespace solver {
 
@@ -132,7 +133,6 @@ std::set<int> getPath(const graph::Forest& forest,
     const graph::Node* current = forest.LabelToTerminal().at(leaf1);
     while(current != lcaNode)
     {   
-        // All Labels on Path should exist...
         assert(nodeToIndex.count(current) > 0);
         edges.insert(nodeToIndex.at(current));
         current = current->parent;
@@ -142,7 +142,6 @@ std::set<int> getPath(const graph::Forest& forest,
     current = forest.LabelToTerminal().at(leaf2);
     while(current != lcaNode)
     {
-        // All Labels on Path should exist...
         assert(nodeToIndex.count(current) > 0);
         edges.insert(nodeToIndex.at(current));
         current = current->parent;

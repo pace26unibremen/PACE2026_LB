@@ -3,6 +3,7 @@
 
 #include "AbstractILPSolver.hpp"
 #include "../../Graph/Forest.hpp"
+#include "../../Graph/ForestIO.hpp"
 #include "../../Graph/Instance.hpp"
 #include "../AbstractSolver.hpp"
 #include "ILPFormulation.hpp"
@@ -51,10 +52,7 @@ class MAFILPSolver : public AbstractSolver
 
     /// \brief Reconstructs the MAF from cut edges.
     /// \param cutEdges The cut edges.
-    /// \returns The MAF as a Forest.
-    /// \todo Implement MAF reconstruction from cut edges.
-    [[nodiscard]]
-    std::shared_ptr<graph::Forest> reconstructMAF(const std::vector<int>& cutEdges) const;
+    void reconstructMAF(const std::vector<int>& cutEdges);
 
     /// \brief Creates the concrete ILP solver based on solverType.
     /// \param solverType The solver type to create.
@@ -69,8 +67,8 @@ class MAFILPSolver : public AbstractSolver
                     ILPSolverType solverType = ILPSolverType::EvalMaxSAT);
 
         /// \brief Solves the instance.
-        /// \returns The MAF as a Forest.
-        std::shared_ptr<graph::Forest> solve() override;
+        /// \returns true if solve was successful, otherwise false.
+        bool solve() override;
 };
 
 }  // namespace solver

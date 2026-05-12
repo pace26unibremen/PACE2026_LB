@@ -1,5 +1,7 @@
 #include "MAFILPSolver.hpp"
 #include "../Action/DeleteEdgeAction.hpp"
+#include "../Rule/SubtreeReductionRule.hpp"
+#include "../Context.hpp"
 #include "TreeUtils.hpp"
 
 // Solver-Header...
@@ -32,16 +34,28 @@ MAFILPSolver::MAFILPSolver(const std::shared_ptr<graph::Instance>& instance,
 // =============================================================================
 // solve
 // =============================================================================
-std::shared_ptr<graph::Forest> MAFILPSolver::solve()
+bool MAFILPSolver::solve()
 {
     // TODO: Early-exit if no constraints → trees already compatible, SPR-distance = 0
     // If problem.nConstraints() == 0, skip solver and return reconstructMAF({})
     // This avoids calling the ILP solver for trivial instances.
     
+    // Apply Subtree Reduction Rule...
+    std::shared_ptr<Context> context = std::make_shared<Context>();
+    auto subtreeReduction = solver::SubtreeReductionRule::isApplicable(instance, context);
+    if (subtreeReduction)
+    {
+        subtreeReduction->apply();
+    }
+    
     ILPProblem problem = buildProblem();
     ILPSolution solution        = solveProblem(problem);
+    if (!solution.feasible) 
+        return false;
     std::vector<int> cutEdges   = extractCutEdges(solution);
-    return reconstructMAF(cutEdges);
+    reconstructMAF(cutEdges);
+
+    return true;
 }
 
 
@@ -78,13 +92,10 @@ std::vector<int> MAFILPSolver::extractCutEdges(const ILPSolution& solution) cons
     return cutEdges;
 }
 
-std::shared_ptr<graph::Forest> MAFILPSolver::reconstructMAF(const std::vector<int>& cutEdges) const
+void MAFILPSolver::reconstructMAF(const std::vector<int>& cutEdges)
 {
-    // Copy of Forest...
-    graph::Forest forest = (*instance)[0]->copy();
-    std::shared_ptr<graph::Forest> forestPtr = std::make_shared<graph::Forest>(forest);
-
     // Build index map on original forest, to match edges of vector-list...
+    auto forestPtr = (*instance)[0];
     auto indexToNode = buildIndexToNodeMap(*forestPtr);
 
     // Apply Cut Edges...
@@ -97,7 +108,6 @@ std::shared_ptr<graph::Forest> MAFILPSolver::reconstructMAF(const std::vector<in
         action.doAction();
     }
 
-    return forestPtr;
 }
 
 std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solverType)
@@ -121,7 +131,7 @@ std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solv
             #ifdef USE_UWRMAXSAT
                 return std::make_unique<UWrMaxSatSolver>();
             #else
-                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_UWRMAXSAT");
+                throw std::runtime_error("UWrMaxSatSolver not available - rebuild with USE_UWRMAXSAT");
             #endif
         default:
             throw std::invalid_argument("MAFILPSolver: Unknown ILP solver type");

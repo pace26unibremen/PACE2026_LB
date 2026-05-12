@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/benchmark/catch_benchmark.hpp>
+#include <iostream>
 
 #include "../../src/Graph/Instance.hpp"
 #include "../../src/Solver/ILP/MAFILPSolver.hpp"
@@ -26,9 +27,9 @@ TEST_CASE("MAFILPSolver with UWrMaxSat on Tiny Test Set", "[MAFILPSolver, EvalMa
         {
             auto instance = graph::ReadInstance(std::string(ILP_TEST_DIR) + f);
             auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::UWrMaxSat);
-            auto solution = solver.solve();
-
-            REQUIRE(solution->Roots().size() == instanceToSolutionSize[f]);
+            auto solved = solver.solve();
+            CHECK(solved);
+            CHECK(solver.Instance()->at(0)->Roots().size() == instanceToSolutionSize[f]);
         }
     }
 }

@@ -2,6 +2,7 @@
 #include "TreeUtils.hpp"
 
 #include <cassert>
+#include <iostream>
 
 namespace solver {
 
@@ -21,22 +22,29 @@ std::vector<std::set<int>> computeTripleConstraints(
     assert(nodeToIndex2.size() == forest2.Nodes().size());
 
     std::vector<std::set<int>> tripleConstraints;
-    int numLeaves = forest1.LabelToTerminal().size();
-
-    for(unsigned int i = 1; i <= numLeaves; ++i)
+    // Need the labels, due to reductions these may not be iterating...
+    std::vector<unsigned int> labels;
+    for (const auto& [_, label] : forest1.TerminalToLabel())
     {
-        for(unsigned int j = i+1; j <= numLeaves; ++j)
+        labels.push_back(label);
+    }
+    std::sort(labels.begin(), labels.end());
+    int numLeaves = labels.size();
+
+    for(unsigned int i = 0; i < numLeaves; ++i)
+    {
+        for(unsigned int j = i+1; j < numLeaves; ++j)
         {
-            for(unsigned int k = j+1; k <= numLeaves; ++k)
+            for(unsigned int k = j+1; k < numLeaves; ++k)
             {
-                bool fIncTriple = checkIncompatibleTriple(i, j, k, forest1, forest2, lca1, lca2, nodeToIndex1, nodeToIndex2);
+                bool fIncTriple = checkIncompatibleTriple(labels[i], labels[j], labels[k], forest1, forest2, lca1, lca2, nodeToIndex1, nodeToIndex2);
                 
                 // If Triple is compatible just continue...
                 if (!fIncTriple) continue;
 
-                std::set<int> edgesij = getPath(forest1, i, j, lca1, nodeToIndex1);
-                std::set<int> edgesjk = getPath(forest1, j, k, lca1, nodeToIndex1);
-                std::set<int> edgesik = getPath(forest1, i, k, lca1, nodeToIndex1);
+                std::set<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1);
+                std::set<int> edgesjk = getPath(forest1, labels[j], labels[k], lca1, nodeToIndex1);
+                std::set<int> edgesik = getPath(forest1, labels[i], labels[k], lca1, nodeToIndex1);
 
                 // Union aller drei Pfade
                 std::set<int> triPathEdges = edgesij;
@@ -68,28 +76,35 @@ std::vector<std::set<int>> computePathPairConstraints(
     assert(nodeToIndex2.size() == forest2.Nodes().size());
 
     std::vector<std::set<int>> pathPairConstraints;
-    int numLeaves = forest1.LabelToTerminal().size();
 
-    for(unsigned int i = 1; i <= numLeaves; ++i)
+    // Need the labels, due to reductions these may not be iterating...
+    std::vector<unsigned int> labels;
+    for (const auto& [_, label] : forest1.TerminalToLabel())
     {
-        for(unsigned int j = i+1; j <= numLeaves; ++j)
+        labels.push_back(label);
+    }
+    std::sort(labels.begin(), labels.end());
+    int numLeaves = labels.size();
+
+    for(unsigned int i = 0; i < numLeaves; ++i)
+    {
+        for(unsigned int j = i+1; j < numLeaves; ++j)
         {
-            for(unsigned int p = i+1; p <= numLeaves; ++p)
+            for(unsigned int p = i+1; p < numLeaves; ++p)
             {
                 // Only look at unique leaf pairs...
                 if(p == j) continue;
-                for(unsigned int q = p+1; q <= numLeaves; ++q)
+                for(unsigned int q = p+1; q < numLeaves; ++q)
                 {
                     // Only look at unique leaf pairs...
                     if(q == j) continue;
 
-                    // Only Important case is, if paths of pairs are disjoint in forest1
                     // but not disjoint in forest2...
-                    if(!areTwoPathsDisjoint(forest1, i, j, p, q, lca1, nodeToIndex1)) continue;
-                    if( areTwoPathsDisjoint(forest2, i, j, p, q, lca2, nodeToIndex2)) continue;
+                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1)) continue;
+                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2)) continue;
 
-                    std::set<int> edgesij = getPath(forest1, i, j, lca1, nodeToIndex1);
-                    std::set<int> edgespq = getPath(forest1, p, q, lca1, nodeToIndex1);
+                    std::set<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1);
+                    std::set<int> edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1);
 
                     std::set<int> pathPairEdges = edgesij;
                     pathPairEdges.insert(edgespq.begin(), edgespq.end());
