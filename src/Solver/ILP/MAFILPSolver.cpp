@@ -42,18 +42,23 @@ bool MAFILPSolver::solve()
     
     // Apply Subtree Reduction Rule...
     std::shared_ptr<Context> context = std::make_shared<Context>();
+    std::list<std::shared_ptr<AbstractRule>> appliedReductions;
     auto subtreeReduction = solver::SubtreeReductionRule::isApplicable(instance, context);
     if (subtreeReduction)
     {
+        std::cout << "Subtree Recudtion is applicable!" << std::endl;
         subtreeReduction->apply();
     }
-    
+
     ILPProblem problem = buildProblem();
     ILPSolution solution        = solveProblem(problem);
     if (!solution.feasible) 
         return false;
     std::vector<int> cutEdges   = extractCutEdges(solution);
     reconstructMAF(cutEdges);
+
+    
+    subtreeReduction->unapply();
 
     return true;
 }
