@@ -47,6 +47,12 @@ stages:
 build-solver:
   stage: build
   image: alpine:3.20
+  cache:
+    key: "build-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - build-master
+    paths:
+      - build/
   script:
     - apk add --no-cache cmake ninja gcc g++ musl-dev git file zlib-dev gmp-dev make
     - mkdir -p build
