@@ -75,6 +75,7 @@ target_include_directories(UWrMaxSat
     PRIVATE
         ${CADICAL_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/cominisatps
+        ${CMAKE_CURRENT_SOURCE_DIR}/cominisatps/minisat
 )
 
 # ── Compile Definitions (aus config.cadical) ──────────────────────────────────
