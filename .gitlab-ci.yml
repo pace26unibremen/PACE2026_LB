@@ -79,10 +79,11 @@ build-solver:
       - build/tests/ForestSubforestTests
       - build/tests/DeleteEdgeActionTests
       - build/tests/BranchingSolverSimpleTests
-      - build/tests/ILP/TreeUtilsTests     
+      - build/tests/ILP/TreeUtilsTests
       - build/tests/ILP/ILPFormulationTests
       - build/tests/ILP/ILPSolverSimpleTests
       - build/tests/ILP/ILPSolverEvalMaxSATTests
+      - build/tests/ILP/ILPSolverUWrMaxSatTests
 
 build-solver-windows:
   stage: build
@@ -144,13 +145,19 @@ test-branching-solver:
 
 test-ilp-solver-evalmaxsat:
   extends: .test-base
-  dependencies:
-    - build-solver
   before_script:
     - cd build/tests/ILP/
     - chmod +x ILPSolverEvalMaxSATTests
   script:
     - ./ILPSolverEvalMaxSATTests --reporter junit -o ILPSolverEvalMaxSATTests-results.xml
+
+test-ilp-solver-uwrmaxsat:
+  extends: .test-base
+  before_script:
+    - cd build/tests/ILP/
+    - chmod +x ILPSolverUWrMaxSatTests
+  script:
+    - ./ILPSolverUWrMaxSatTests --reporter junit -o ILPSolverUWrMaxSatTests-results.xml
 
 test-ilp-solver-scip:
   stage: test
@@ -169,7 +176,7 @@ test-ilp-solver-scip:
     reports:
       junit: build-scip/tests/ILP/ILPSolverSCIPTests-results.xml
     expire_in: 1 Month
-    
+
 test-ilp-tree-utils:
   extends: .test-base
   before_script:
@@ -194,7 +201,7 @@ pages:
     - test-actions
     - test-graph-representation
     - test-branching-solver
-    - test-ilp-tree-utils       
+    - test-ilp-tree-utils
     - test-ilp-formulation
   script:
     # Install Doxygen + Graphviz
@@ -208,10 +215,12 @@ pages:
     paths:
       - public
     expire_in: 1 Month
-  only:
-    # Publish docs only from master branch and tags
-    - master
-    - tags
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG'
+      when: on_success
+    - when: never
 
 # Prepare version, tag name, and release description (no tag/release created here)
 prepare-release:
@@ -292,7 +301,7 @@ prepare-release:
           | sed 's/^/  /'
         )
         DESC_FULL="${DESC}
-        
+      
         ... (see more at $CI_PROJECT_URL/-/issues/$ISSUE_IID)"
         TITLE="$ISSUE_TITLE"
       else
@@ -353,10 +362,16 @@ release-job:
     description: release-description.md  # Points to the file
     assets:
       links:
-        - name: 'solver (Linux x86_64 static binary)'
+        - name: 'solver – branching (Linux x86_64 static)'
           url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/startSolver?job=build-solver'
           link_type: 'package'
-        - name: 'solver (Windows x86_64 static binary)'
+        - name: 'solver – EvalMaxSAT ILP (Linux x86_64 static)'
+          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/solver_evalmaxsat?job=build-solver'
+          link_type: 'package'
+        - name: 'solver – UWrMaxSat ILP (Linux x86_64 static)'
+          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/solver_uwrmaxsat?job=build-solver'
+          link_type: 'package'
+        - name: 'solver (Windows x86_64 static)'
           url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build-win/src/startSolver.exe?job=build-solver-windows'
           link_type: 'package'
 
@@ -364,10 +379,21 @@ release-job:
 build_stride:
   stage: build
   image: rust:1.93
+  cache:
+    # All branches share one cache. The git pull below ensures we always get the
+    # latest stride; Cargo then only recompiles what actually changed.
+    key: stride
+    paths:
+      - pace26stride/
   script:
     - apt-get update && apt-get install -y musl-tools
     - rustup target add x86_64-unknown-linux-musl
-    - git clone https://github.com/manpen/pace26stride.git
+    - |
+      if [ -d pace26stride ]; then
+        git -C pace26stride pull --ff-only
+      else
+        git clone https://github.com/manpen/pace26stride.git
+      fi
     - cd pace26stride
     - cargo build --profile smaller-release --target x86_64-unknown-linux-musl
   artifacts:
@@ -389,6 +415,7 @@ build_stride:
     STRIDE_TIMEOUT: 1800
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}${RUN_SUFFIX}"
+    SOLVER: "startSolver"
   before_script:
     - echo "Setting up SSH for HPC access..."
     - apt-get update && apt-get install -y openssh-client rsync curl jq
@@ -434,7 +461,7 @@ build_stride:
         STRIDE_OPTIMAL=true
       EOF
     - cp pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride hpc_transfer/
-    - cp build/src/startSolver hpc_transfer/
+    - cp build/src/$SOLVER hpc_transfer/startSolver
     - cp res/instances/"$INSTANCES_LST" hpc_transfer/instances.lst
     - cp gitlab-ci/slurm/"$SLURM_SCRIPT"  hpc_transfer/run_stride.slurm
     - cp gitlab-ci/bash/*.sh hpc_transfer/
@@ -552,4 +579,27 @@ run_exact-track_benchmark:
     - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "exact" || $RUN_BENCHMARK == "all")'
       when: on_success
     - !reference [ .release-rules, rules ]
+    - when: never
+
+# ILP: every commit
+run_ILP_benchmark:
+  variables:
+    INSTANCES_LST: "2trees_benchmark.lst"
+    SLURM_SCRIPT: "release_run.slurm"
+    STRIDE_TIMEOUT: 1800
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_ILP${RUN_SUFFIX}"
+    SOLVER: "solver_uwrmaxsat"
+    RUN_SUFFIX: "_uwrmaxsat"
+  extends: .run_stride_benchmark_template
+  rules:
+    # Skip if this is a release pipeline (merge into master)
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /Merge request|See merge request/'
+      when: never
+    # If manually triggered from the web UI and the variable is set to quick or all, run the quick benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "ilp" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    # Run on all other pipelines (branches, MRs, direct master pushes)
+    - if: '$CI_PIPELINE_SOURCE != "web"'
+      when: on_success
     - when: never
