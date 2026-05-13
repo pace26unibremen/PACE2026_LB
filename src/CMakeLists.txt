@@ -16,7 +16,7 @@ endmacro()
 add_solver_target(solver_branching "" "Solver;Graph;Cluster")
 if(PIPELINE_BUILD)
     set_target_properties(solver_branching PROPERTIES
-        OUTPUT_NAME "solver" # Comment out for building on macos
+        OUTPUT_NAME "solver" 
     )
 endif()
 

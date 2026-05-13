@@ -6,7 +6,7 @@ add_library(Solver
         Rule/ChainReductionRule.cpp
         Rule/ChainReductionRule.h)
 
-target_link_libraries(Solver Graph Cluster) # ggf. EvalMaxSat einbinden hier
+target_link_libraries(Solver Graph Cluster) 
 
 set_target_properties(Solver PROPERTIES
         VERSION ${PROJECT_VERSION}
