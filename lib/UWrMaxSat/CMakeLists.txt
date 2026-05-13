@@ -97,8 +97,12 @@ target_compile_options(UWrMaxSat PRIVATE
 )
 
 # ── GMP ───────────────────────────────────────────────────────────────────────
+if(CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
+    unset(GMP_LIBRARY CACHE)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+endif()
 find_library(GMP_LIBRARY NAMES gmp REQUIRED)
-message(STATUS "GMP gefunden: ${GMP_LIBRARY}")
+message(STATUS "GMP: ${GMP_LIBRARY}")
 
 # ── MaxPre Option ─────────────────────────────────────────────────────────────
 option(USE_MAXPRE "Use MaxPre preprocessor for UWrMaxSat" OFF)
