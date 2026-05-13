@@ -40,7 +40,7 @@ if(NOT EXISTS ${CADICAL_LIB_PATH})
         ECHO_ERROR_VARIABLE
     )
    execute_process(
-        COMMAND sh -c "cd ${CADICAL_DIR} && CXX=/usr/bin/clang++ ./configure --no-contracts --no-tracing && make cadical 2>&1; echo 'exit: '$?"
+        COMMAND sh -c "cd ${CADICAL_DIR} && CXX=${CMAKE_CXX_COMPILER} ./configure --no-contracts --no-tracing && make cadical 2>&1; echo 'exit: '$?"
         RESULT_VARIABLE CADICAL_BUILD_RESULT
         ECHO_OUTPUT_VARIABLE
         ECHO_ERROR_VARIABLE
@@ -86,6 +86,7 @@ target_compile_definitions(UWrMaxSat
         _FILE_OFFSET_BITS=64
         __STDC_FORMAT_MACROS
         __STDC_LIMIT_MACROS
+        __va_copy=va_copy
 )
 
 # ── Forced Includes (Original: -include Global.h -include Main.h) ─────────────
