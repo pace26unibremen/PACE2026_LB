@@ -48,15 +48,15 @@ build-solver:
   stage: build
   image: alpine:3.20
   script:
-    - apk add --no-cache cmake ninja clang musl-dev libc++-dev git file zlib-dev gmp-dev make
+    - apk add --no-cache cmake ninja gcc g++ musl-dev git file zlib-dev gmp-dev make
     - mkdir -p build
     - cd build
-    # Configure CMake to use clang and link statically
-    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DBUILD_UWRMAXSAT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static"
+    # Configure CMake to use gcc and link statically
+    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DBUILD_UWRMAXSAT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXE_LINKER_FLAGS="-static"
     - ninja
-    # Check that the resulting binary is indeed statically linked 
+    # Check that the resulting binary is indeed statically linked
     - |
-      FILE_OUT=$(file src/solver) 
+      FILE_OUT=$(file src/startSolver)
       echo "$FILE_OUT"
       if ! echo "$FILE_OUT" | grep -q 'statically linked'; then
         echo "src/startSolver is not statically linked" >&2
