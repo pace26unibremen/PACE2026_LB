@@ -461,7 +461,7 @@ build_stride:
         STRIDE_OPTIMAL=true
       EOF
     - cp pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride hpc_transfer/
-    - cp build/src/$SOLVER hpc_transfer/startSolver
+    - cp build/src/"$SOLVER" hpc_transfer/startSolver
     - cp res/instances/"$INSTANCES_LST" hpc_transfer/instances.lst
     - cp gitlab-ci/slurm/"$SLURM_SCRIPT"  hpc_transfer/run_stride.slurm
     - cp gitlab-ci/bash/*.sh hpc_transfer/
@@ -543,6 +543,9 @@ run_quick_benchmark:
     # Skip if this is a release pipeline (merge into master)
     - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /Merge request|See merge request/'
       when: never
+    # Temporary disable quick benchmarks for testing the ILP solvers
+    - if: '$CI_COMMIT_BRANCH == "55-migrate-ilp-solver"'
+      when: never
     # If manually triggered from the web UI and the variable is set to quick or all, run the quick benchmark
     - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "quick" || $RUN_BENCHMARK == "all")'
       when: on_success
@@ -589,8 +592,8 @@ run_ILP_benchmark:
     STRIDE_TIMEOUT: 1800
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_ILP${RUN_SUFFIX}"
-    SOLVER: "solver_uwrmaxsat"
-    RUN_SUFFIX: "_uwrmaxsat"
+    SOLVER: "solver_evalmaxsat"
+    RUN_SUFFIX: "_evalmaxsat"
   extends: .run_stride_benchmark_template
   rules:
     # Skip if this is a release pipeline (merge into master)
