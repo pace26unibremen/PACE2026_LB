@@ -52,7 +52,8 @@ build-solver:
     fallback_keys:
       - build-master
     paths:
-      - build/
+      - lib/UWrMaxSat/uwrmaxsat/cadical/build/
+      - build/_deps/
   script:
     - apk add --no-cache cmake ninja gcc g++ musl-dev git file zlib-dev gmp-dev make
     - mkdir -p build
@@ -380,11 +381,13 @@ build_stride:
   stage: build
   image: rust:1.93
   cache:
-    # All branches share one cache. The git pull below ensures we always get the
-    # latest stride; Cargo then only recompiles what actually changed.
+    # Cache only the binary + a commit-hash marker. The full Rust target/
+    # directory is too large; this keeps the cache under ~5 MB while still
+    # skipping rebuilds when stride hasn't changed.
     key: stride
     paths:
-      - pace26stride/
+      - pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride
+      - pace26stride/.build-commit
   script:
     - apt-get update && apt-get install -y musl-tools
     - rustup target add x86_64-unknown-linux-musl
@@ -394,8 +397,18 @@ build_stride:
       else
         git clone https://github.com/manpen/pace26stride.git
       fi
-    - cd pace26stride
-    - cargo build --profile smaller-release --target x86_64-unknown-linux-musl
+    - |
+      STRIDE_BIN="pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride"
+      CURRENT_COMMIT=$(git -C pace26stride rev-parse HEAD)
+      CACHED_COMMIT=$(cat pace26stride/.build-commit 2>/dev/null || echo "")
+      if [ "$CURRENT_COMMIT" = "$CACHED_COMMIT" ] && [ -f "$STRIDE_BIN" ]; then
+        echo "Stride up to date at $CURRENT_COMMIT — skipping build"
+      else
+        cd pace26stride
+        cargo build --profile smaller-release --target x86_64-unknown-linux-musl
+        cd ..
+        echo "$CURRENT_COMMIT" > pace26stride/.build-commit
+      fi
   artifacts:
     expire_in: 1 day
     paths:
