@@ -4,7 +4,7 @@ add_subdirectory(Solver)
 
 # Shared macro for solver targets
 macro(add_solver_target TARGET_NAME DEFINITIONS LINK_LIBS)
-    add_executable(${TARGET_NAME} solver.cpp)
+    add_executable(${TARGET_NAME} startSolver.cpp)
     target_compile_definitions(${TARGET_NAME} PRIVATE ${DEFINITIONS})
     target_link_libraries(${TARGET_NAME} PRIVATE ${LINK_LIBS})
     set_target_properties(${TARGET_NAME} PROPERTIES
@@ -13,10 +13,11 @@ macro(add_solver_target TARGET_NAME DEFINITIONS LINK_LIBS)
 endmacro()
     
 # Target 1: BranchingSolver
-add_solver_target(solver_branching "" "Solver;Graph;Cluster")
+# Note we still keep the name "startSolver" for backward compatibility
+add_solver_target(startSolver "" "Solver;Graph;Cluster")
 if(PIPELINE_BUILD)
-    set_target_properties(solver_branching PROPERTIES
-        OUTPUT_NAME "solver" # Comment out for building on macos
+    set_target_properties(startSolver PROPERTIES
+        OUTPUT_NAME "startSolver" # Comment out for building on macos
     )
 endif()
 
