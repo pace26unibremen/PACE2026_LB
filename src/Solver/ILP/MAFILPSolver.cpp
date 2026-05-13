@@ -46,7 +46,7 @@ bool MAFILPSolver::solve()
     auto subtreeReduction = solver::SubtreeReductionRule::isApplicable(instance, context);
     if (subtreeReduction)
     {
-        std::cout << "Subtree Recudtion is applicable!" << std::endl;
+        std::clog << "Subtree Recudtion is applicable!" << std::endl;
         subtreeReduction->apply();
     }
 
