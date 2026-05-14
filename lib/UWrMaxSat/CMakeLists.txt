@@ -40,7 +40,7 @@ if(NOT EXISTS ${CADICAL_LIB_PATH})
         ECHO_ERROR_VARIABLE
     )
    execute_process(
-        COMMAND sh -c "cd ${CADICAL_DIR} && CXX=/usr/bin/clang++ ./configure --no-contracts --no-tracing && make cadical 2>&1; echo 'exit: '$?"
+        COMMAND sh -c "cd ${CADICAL_DIR} && CXX=${CMAKE_CXX_COMPILER} ./configure --no-contracts --no-tracing && make cadical 2>&1; echo 'exit: '$?"
         RESULT_VARIABLE CADICAL_BUILD_RESULT
         ECHO_OUTPUT_VARIABLE
         ECHO_ERROR_VARIABLE
@@ -75,6 +75,7 @@ target_include_directories(UWrMaxSat
     PRIVATE
         ${CADICAL_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/cominisatps
+        ${CMAKE_CURRENT_SOURCE_DIR}/cominisatps/minisat
 )
 
 # ── Compile Definitions (aus config.cadical) ──────────────────────────────────
@@ -85,6 +86,7 @@ target_compile_definitions(UWrMaxSat
         _FILE_OFFSET_BITS=64
         __STDC_FORMAT_MACROS
         __STDC_LIMIT_MACROS
+        __va_copy=va_copy
 )
 
 # ── Forced Includes (Original: -include Global.h -include Main.h) ─────────────
@@ -95,8 +97,12 @@ target_compile_options(UWrMaxSat PRIVATE
 )
 
 # ── GMP ───────────────────────────────────────────────────────────────────────
+if(CMAKE_EXE_LINKER_FLAGS MATCHES "-static")
+    unset(GMP_LIBRARY CACHE)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+endif()
 find_library(GMP_LIBRARY NAMES gmp REQUIRED)
-message(STATUS "GMP gefunden: ${GMP_LIBRARY}")
+message(STATUS "GMP: ${GMP_LIBRARY}")
 
 # ── MaxPre Option ─────────────────────────────────────────────────────────────
 option(USE_MAXPRE "Use MaxPre preprocessor for UWrMaxSat" OFF)

@@ -29,6 +29,7 @@ Read a DIMACS file and apply the SAT-solver to it.
 **************************************************************************************************/
 
 
+#include <ctime>
 #include <unistd.h>
 #include <signal.h>
 #include "System.h"

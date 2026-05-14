@@ -18,4 +18,4 @@ fi
 mkdir -p "$STRIDE_DOWNLOADS_PATH"
 
 ./stride download -i instances.lst
-./stride run -O -i instances.lst
+./stride run -i instances.lst

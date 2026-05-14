@@ -48,15 +48,15 @@ build-solver:
   stage: build
   image: alpine:3.20
   script:
-    - apk add --no-cache cmake ninja clang musl-dev libc++-dev git file zlib-dev gmp-dev make
+    - apk add --no-cache cmake ninja gcc g++ musl-dev git file zlib-dev gmp-dev make
     - mkdir -p build
     - cd build
-    # Configure CMake to use clang and link statically
-    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DBUILD_UWRMAXSAT=ON -DUSE_MAXPRE=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static"
+    # Configure CMake to use gcc and link statically
+    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DBUILD_UWRMAXSAT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXE_LINKER_FLAGS="-static"
     - ninja
-    # Check that the resulting binary is indeed statically linked 
+    # Check that the resulting binary is indeed statically linked
     - |
-      FILE_OUT=$(file src/solver) 
+      FILE_OUT=$(file src/startSolver)
       echo "$FILE_OUT"
       if ! echo "$FILE_OUT" | grep -q 'statically linked'; then
         echo "src/startSolver is not statically linked" >&2
@@ -73,10 +73,11 @@ build-solver:
       - build/tests/ForestSubforestTests
       - build/tests/DeleteEdgeActionTests
       - build/tests/BranchingSolverSimpleTests
-      - build/tests/ILP/TreeUtilsTests     
+      - build/tests/ILP/TreeUtilsTests
       - build/tests/ILP/ILPFormulationTests
       - build/tests/ILP/ILPSolverSimpleTests
       - build/tests/ILP/ILPSolverEvalMaxSATTests
+      - build/tests/ILP/ILPSolverUWrMaxSatTests
 
 build-solver-windows:
   stage: build
@@ -138,13 +139,19 @@ test-branching-solver:
 
 test-ilp-solver-evalmaxsat:
   extends: .test-base
-  dependencies:
-    - build-solver
   before_script:
     - cd build/tests/ILP/
     - chmod +x ILPSolverEvalMaxSATTests
   script:
     - ./ILPSolverEvalMaxSATTests --reporter junit -o ILPSolverEvalMaxSATTests-results.xml
+
+test-ilp-solver-uwrmaxsat:
+  extends: .test-base
+  before_script:
+    - cd build/tests/ILP/
+    - chmod +x ILPSolverUWrMaxSatTests
+  script:
+    - ./ILPSolverUWrMaxSatTests --reporter junit -o ILPSolverUWrMaxSatTests-results.xml
 
 test-ilp-solver-scip:
   stage: test
@@ -163,7 +170,7 @@ test-ilp-solver-scip:
     reports:
       junit: build-scip/tests/ILP/ILPSolverSCIPTests-results.xml
     expire_in: 1 Month
-    
+
 test-ilp-tree-utils:
   extends: .test-base
   before_script:
@@ -188,7 +195,7 @@ pages:
     - test-actions
     - test-graph-representation
     - test-branching-solver
-    - test-ilp-tree-utils       
+    - test-ilp-tree-utils
     - test-ilp-formulation
   script:
     # Install Doxygen + Graphviz
@@ -202,10 +209,12 @@ pages:
     paths:
       - public
     expire_in: 1 Month
-  only:
-    # Publish docs only from master branch and tags
-    - master
-    - tags
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_TAG'
+      when: on_success
+    - when: never
 
 # Prepare version, tag name, and release description (no tag/release created here)
 prepare-release:
@@ -286,7 +295,7 @@ prepare-release:
           | sed 's/^/  /'
         )
         DESC_FULL="${DESC}
-        
+      
         ... (see more at $CI_PROJECT_URL/-/issues/$ISSUE_IID)"
         TITLE="$ISSUE_TITLE"
       else
@@ -347,10 +356,16 @@ release-job:
     description: release-description.md  # Points to the file
     assets:
       links:
-        - name: 'solver (Linux x86_64 static binary)'
+        - name: 'solver – branching (Linux x86_64 static)'
           url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/startSolver?job=build-solver'
           link_type: 'package'
-        - name: 'solver (Windows x86_64 static binary)'
+        - name: 'solver – EvalMaxSAT ILP (Linux x86_64 static)'
+          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/solver_evalmaxsat?job=build-solver'
+          link_type: 'package'
+        - name: 'solver – UWrMaxSat ILP (Linux x86_64 static)'
+          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/solver_uwrmaxsat?job=build-solver'
+          link_type: 'package'
+        - name: 'solver (Windows x86_64 static)'
           url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build-win/src/startSolver.exe?job=build-solver-windows'
           link_type: 'package'
 
@@ -383,6 +398,8 @@ build_stride:
     STRIDE_TIMEOUT: 1800
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}${RUN_SUFFIX}"
+    STRIDE_SOLVER: "startSolver"
+    STRIDE_OPTIMAL: true
   before_script:
     - echo "Setting up SSH for HPC access..."
     - apt-get update && apt-get install -y openssh-client rsync curl jq
@@ -425,10 +442,10 @@ build_stride:
         STRIDE_DOWNLOADS_PATH="../../shared/.stride-downloads"
         STRIDE_INSTANCE_ORDER="nodes-trees-asc"
         STRIDE_RUN_NAME="$STRIDE_RUN_NAME"
-        STRIDE_OPTIMAL=true
+        STRIDE_OPTIMAL="$STRIDE_OPTIMAL"
       EOF
     - cp pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride hpc_transfer/
-    - cp build/src/startSolver hpc_transfer/
+    - cp build/src/"$STRIDE_SOLVER" hpc_transfer/startSolver
     - cp res/instances/"$INSTANCES_LST" hpc_transfer/instances.lst
     - cp gitlab-ci/slurm/"$SLURM_SCRIPT"  hpc_transfer/run_stride.slurm
     - cp gitlab-ci/bash/*.sh hpc_transfer/
@@ -510,6 +527,9 @@ run_quick_benchmark:
     # Skip if this is a release pipeline (merge into master)
     - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /Merge request|See merge request/'
       when: never
+    # Temporary disable quick benchmarks for testing the ILP solvers
+    - if: '$CI_COMMIT_BRANCH == "55-migrate-ilp-solver"'
+      when: never
     # If manually triggered from the web UI and the variable is set to quick or all, run the quick benchmark
     - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "quick" || $RUN_BENCHMARK == "all")'
       when: on_success
@@ -546,4 +566,28 @@ run_exact-track_benchmark:
     - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "exact" || $RUN_BENCHMARK == "all")'
       when: on_success
     - !reference [ .release-rules, rules ]
+    - when: never
+
+# ILP: every commit
+run_ILP_benchmark:
+  variables:
+    INSTANCES_LST: "2trees_benchmark.lst"
+    SLURM_SCRIPT: "release_run.slurm"
+    STRIDE_TIMEOUT: 1800
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_ILP${RUN_SUFFIX}"
+    STRIDE_SOLVER: "solver_uwrmaxsat"
+    RUN_SUFFIX: "_uwrmaxsat"
+    STRIDE_OPTIMAL: false
+  extends: .run_stride_benchmark_template
+  rules:
+    # Skip if this is a release pipeline (merge into master)
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /Merge request|See merge request/'
+      when: never
+    # If manually triggered from the web UI and the variable is set to quick or all, run the quick benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "ilp" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    # Run on all other pipelines (branches, MRs, direct master pushes)
+    - if: '$CI_PIPELINE_SOURCE != "web"'
+      when: on_success
     - when: never

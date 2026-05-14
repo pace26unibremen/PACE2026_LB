@@ -29,6 +29,7 @@ if(BUILD_UWRMAXSAT)
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps/minisat
     )
     if(USE_MAXPRE)
         target_compile_definitions(ILP_UWRMAXSAT PRIVATE USE_MAXPRE)
