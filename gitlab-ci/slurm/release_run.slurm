@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=pace_stride_release_run
 #SBATCH --time=12:00:00
-#SBATCH --mem=64G
+#SBATCH --mem=60G
 #SBATCH --output=run_stride_%j.out
 #SBATCH --error=run_stride_%j.err
 #SBATCH --partition=CPU
