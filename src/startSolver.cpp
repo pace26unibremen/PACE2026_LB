@@ -21,7 +21,11 @@ void runOnStream(std::istream& inStream, std::ostream& outStream) {
 #else
     auto solver = solver::BranchingSolver(instance);
 #endif
-    solver.solve();
+    auto solved = solver.solve();
+    if (!solved)
+    {
+        std::clog << "Solution is unfeasible!" << std::endl;
+    }
 #if !(defined(USE_EVALMAXSAT) || defined(USE_SCIP) || defined(USE_UWRMAXSAT))
     solver.unapplyReductions();
 #endif
