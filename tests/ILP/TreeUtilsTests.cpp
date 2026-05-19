@@ -183,8 +183,8 @@ TEST_CASE("getPath", "[TreeUtils]")
         int idx1 = map1.at(labelToTerminal.at(1));
         int idx2 = map1.at(labelToTerminal.at(2));
 
-        REQUIRE(path12.count(idx1) > 0.5 );
-        REQUIRE(path12.count(idx2) > 0.5 );
+        REQUIRE(std::find(path12.begin(), path12.end(), idx1) != path12.end());
+        REQUIRE(std::find(path12.begin(), path12.end(), idx2) != path12.end());
 
         INFO("path between siblings must be symmetric");
         auto path21 = solver::getPath(*f1, 2, 1, lca1, map1, pathCache);
@@ -213,7 +213,7 @@ TEST_CASE("getPath", "[TreeUtils]")
             for (const auto& [labelB, ptrB] : f1->LabelToTerminal())
             {
                 auto path = solver::getPath(*f1, labelA, labelB, lca1, map1);
-                REQUIRE(path.count(rootIdx) == 0);
+                REQUIRE(std::find(path12.begin(), path12.end(), rootIndex) != path12.end());
             }
         }
     }
