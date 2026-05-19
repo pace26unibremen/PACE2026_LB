@@ -212,7 +212,7 @@ TEST_CASE("getPath", "[TreeUtils]")
         {
             for (const auto& [labelB, ptrB] : f1->LabelToTerminal())
             {
-                auto path = solver::getPath(*f1, labelA, labelB, lca1, map1);
+                auto path = solver::getPath(*f1, labelA, labelB, lca1, map1, pathCache);
                 REQUIRE(std::find(path12.begin(), path12.end(), rootIndex) != path12.end());
             }
         }
