@@ -27,6 +27,7 @@ struct ConstraintTestFixture
     cluster::LeastCommonAncestor lca2;
     std::unordered_map<const graph::Node*, int> map1;
     std::unordered_map<const graph::Node*, int> map2;
+    std::unordered_map<uint64_t, std::vector<int>> pathCache;
 
     explicit ConstraintTestFixture(const std::string& filename)
         : f1(loadInstance(filename).first)
@@ -49,7 +50,7 @@ TEST_CASE("computeTripleConstraints", "[ILPConstraintUtils]")
         ConstraintTestFixture fix("ilp_identical_4leaves.nw");
 
         auto constraints = solver::computeTripleConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         INFO("identical trees must produce no triple constraints");
         REQUIRE(constraints.empty());
@@ -60,7 +61,7 @@ TEST_CASE("computeTripleConstraints", "[ILPConstraintUtils]")
         ConstraintTestFixture fix("ilp_single_incompatible_triple.nw");
 
         auto constraints = solver::computeTripleConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         INFO("exactly one incompatible triple must produce exactly one constraint");
         REQUIRE(constraints.size() == 1);
@@ -75,7 +76,7 @@ TEST_CASE("computeTripleConstraints", "[ILPConstraintUtils]")
         int nEdges = static_cast<int>(fix.f1->Nodes().size()) - 1;
 
         auto constraints = solver::computeTripleConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         for (const auto& constraint : constraints)
         {
@@ -96,7 +97,7 @@ TEST_CASE("computeTripleConstraints", "[ILPConstraintUtils]")
         ConstraintTestFixture fix("ilp_caterpillar_5leaves.nw");
 
         auto constraints = solver::computeTripleConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         REQUIRE(constraints.size() == 9);
         for (const auto& constraint : constraints)
@@ -118,7 +119,7 @@ TEST_CASE("computePathPairConstraints", "[ILPConstraintUtils]")
         ConstraintTestFixture fix("ilp_identical_4leaves.nw");
 
         auto constraints = solver::computePathPairConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         INFO("identical trees must produce no path-pair constraints");
         REQUIRE(constraints.empty());
@@ -129,7 +130,7 @@ TEST_CASE("computePathPairConstraints", "[ILPConstraintUtils]")
         ConstraintTestFixture fix("ilp_disjoint_paths_4leaves.nw");
 
         auto constraints = solver::computePathPairConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         INFO("disjoint paths instance must produce at least one path-pair constraint");
         REQUIRE_FALSE(constraints.empty());
@@ -145,7 +146,7 @@ TEST_CASE("computePathPairConstraints", "[ILPConstraintUtils]")
         int nEdges = static_cast<int>(fix.f1->Nodes().size()) - 1;
 
         auto constraints = solver::computePathPairConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         for (const auto& constraint : constraints)
         {
@@ -166,7 +167,7 @@ TEST_CASE("computePathPairConstraints", "[ILPConstraintUtils]")
         ConstraintTestFixture fix("ilp_caterpillar_5leaves.nw");
 
         auto constraints = solver::computePathPairConstraints(
-            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
+            *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2, fix.pathCache);
 
         REQUIRE(constraints.size() == 4);
         for (const auto& constraint : constraints)
