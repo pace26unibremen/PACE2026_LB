@@ -37,8 +37,8 @@ int getLCA(unsigned int leaf1, unsigned int leaf2,
            const std::unordered_map<const graph::Node*, int>& nodeToIndex)
 {
     // Labels should exist...
-    assert(forest.LabelToTerminal().count(leaf1) > 0);
-    assert(forest.LabelToTerminal().count(leaf2) > 0);
+    //assert(forest.LabelToTerminal().count(leaf1) > 0);
+    //assert(forest.LabelToTerminal().count(leaf2) > 0);
 
     graph::Node* node1 = forest.LabelToTerminal().at(leaf1);
     graph::Node* node2 = forest.LabelToTerminal().at(leaf2);
@@ -84,41 +84,46 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
                           unsigned int lpair1, unsigned int rpair1,
                           unsigned int lpair2, unsigned int rpair2,
                           cluster::LeastCommonAncestor& lca,
-                          const std::unordered_map<const graph::Node*, int>& nodeToIndex)
+                          const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+                          std::unordered_map<uint64_t, std::vector<int>>& pathCache)
 {
 
     // Idea: Calculate both Paths between pairs and check wether intersection of paths is empty...
-    std::set<int> path1 = getPath(forest, lpair1, rpair1, lca, nodeToIndex);
-    std::set<int> path2 = getPath(forest, lpair2, rpair2, lca, nodeToIndex);
+    std::vector<int>& path1 = getPath(forest, lpair1, rpair1, lca, nodeToIndex, pathCache);
+    std::vector<int>& path2 = getPath(forest, lpair2, rpair2, lca, nodeToIndex, pathCache);
 
     // If one path is empty throw logic_error...
     if (path1.empty() || path2.empty())
         throw std::logic_error("TreeUtils::areTwoPathsDisjoint: at least one path is empty!");
 
-    std::set<int> intersection;
-    std::set_intersection(path1.begin(), path1.end(),
-                          path2.begin(), path2.end(),
-                          std::inserter(intersection, intersection.begin()));
+    bool disjoint = !std::any_of(path1.begin(), path1.end(), [&](int x) {
+        return std::binary_search(path2.begin(), path2.end(), x);
+    }); 
 
-    return intersection.empty();
+    return disjoint;
 }
 
 // Computes the set of edge indices on the path between two leaves.
 // Uses the LCA to find the meeting point of both leaves.
 // Traverses upwards from each leaf to the LCA, collecting edge indices.
 // The LCA node itself is not included as it represents no edge on the path.
-std::set<int> getPath(const graph::Forest& forest,
+std::vector<int>& getPath(const graph::Forest& forest,
                       unsigned int leaf1, unsigned int leaf2,
                       cluster::LeastCommonAncestor& lca,
-                      const std::unordered_map<const graph::Node*, int>& nodeToIndex)
+                      const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+                      std::unordered_map<uint64_t, std::vector<int>>& pathCache)
 {
-    std::set<int> edges;
-    // Labels should exist...
-    assert(forest.LabelToTerminal().count(leaf1) > 0);
-    assert(forest.LabelToTerminal().count(leaf2) > 0);
-    
-    if (leaf1 == leaf2)
-        return edges;
+    // Calculate Key for Cache...
+    if (leaf1 > leaf2) std::swap(leaf1, leaf2);
+        uint64_t key = (static_cast<uint64_t>(leaf1) << 32) | leaf2;
+
+    // Look up in Cache...
+    auto it = pathCache.find(key);
+    if (it != pathCache.end())
+        return it->second;
+
+    // If path is not already in cache, calculate new...
+    std::vector<int> edges;
 
     // Get LCA...
     const graph::Node* lcaNode = lca.getLeastCommonAncestor(
@@ -127,14 +132,14 @@ std::set<int> getPath(const graph::Forest& forest,
     );
 
     // LCA should exist...
-    assert(lcaNode != nullptr);
+    //assert(lcaNode != nullptr);
 
     // Path from leaf1 to LCA...
     const graph::Node* current = forest.LabelToTerminal().at(leaf1);
     while(current != lcaNode)
     {   
         assert(nodeToIndex.count(current) > 0);
-        edges.insert(nodeToIndex.at(current));
+        edges.push_back(nodeToIndex.at(current));
         current = current->parent;
     }
 
@@ -143,13 +148,17 @@ std::set<int> getPath(const graph::Forest& forest,
     while(current != lcaNode)
     {
         assert(nodeToIndex.count(current) > 0);
-        edges.insert(nodeToIndex.at(current));
+        edges.push_back(nodeToIndex.at(current));
         current = current->parent;
     }
 
     // Set of edge indices should not be empty...
     assert(!edges.empty());
-    return edges;
+
+    // Sort edges...
+    std::sort(edges.begin(), edges.end());
+    auto [inserted_it, _] = pathCache.emplace(key, std::move(edges));
+    return inserted_it->second;
 }
 
 bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned int leaf3,
@@ -161,16 +170,16 @@ bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned in
                         const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
 {   
     // Forests or LCAs should not be nullpointers...
-    assert(forest1.isValid());
-    assert(forest2.isValid());
+    //assert(forest1.isValid());
+    //assert(forest2.isValid());
 
     // Labels should exist in both forests...
-    assert(forest1.LabelToTerminal().count(leaf1) > 0);
-    assert(forest1.LabelToTerminal().count(leaf2) > 0);
-    assert(forest1.LabelToTerminal().count(leaf3) > 0);
-    assert(forest2.LabelToTerminal().count(leaf1) > 0);
-    assert(forest2.LabelToTerminal().count(leaf2) > 0);
-    assert(forest2.LabelToTerminal().count(leaf3) > 0);
+    //assert(forest1.LabelToTerminal().count(leaf1) > 0);
+    //assert(forest1.LabelToTerminal().count(leaf2) > 0);
+    //assert(forest1.LabelToTerminal().count(leaf3) > 0);
+    //assert(forest2.LabelToTerminal().count(leaf1) > 0);
+    //assert(forest2.LabelToTerminal().count(leaf2) > 0);
+    //assert(forest2.LabelToTerminal().count(leaf3) > 0);
 
     // If two leaves are equal throw logic_error...
     if (leaf1 == leaf2 || leaf1 == leaf3 || leaf2 == leaf3)

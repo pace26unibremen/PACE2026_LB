@@ -11,7 +11,10 @@ ILPFormulation::ILPFormulation(std::shared_ptr<graph::Forest> forest1,
                                 std::shared_ptr<graph::Forest> forest2): forest1(forest1), forest2(forest2),
       lca1(std::make_shared<cluster::LeastCommonAncestor>(forest1)),
       lca2(std::make_shared<cluster::LeastCommonAncestor>(forest2))
-{}
+{
+    int numLeaves = forest1->LabelToTerminal().size();
+    pathCache.reserve(numLeaves * (numLeaves - 1) / 2);
+}
 
 ILPProblem ILPFormulation::build() const
 {
@@ -21,6 +24,8 @@ ILPProblem ILPFormulation::build() const
 
     // NOTE: Assumes Forest::Roots()[0] is the root of the single tree in each forest.
     // Each forest in the instance is expected to contain exactly one tree.
+    
+    pathCache.clear();
 
     assert(forest1->Roots().size() == 1);
     assert(forest2->Roots().size() == 1);
@@ -49,8 +54,8 @@ ILPProblem ILPFormulation::build() const
 
     // Triple-Constraints: for every Tripel-Constraint-Set S: ∑_{i∈S} xᵢ ≥ 1
     // NOTE: A constraint here is a set of integers, that represent Variable Indices... 
-    std::vector<std::set<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2);
-    for (const std::set<int>& edges : tripleConstraints)
+    std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache);
+    for (const std::vector<int>& edges : tripleConstraints)
     {
         std::vector<int> varIndices;
         std::vector<double> coeffs;
@@ -64,8 +69,8 @@ ILPProblem ILPFormulation::build() const
     }
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
-    std::vector<std::set<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2);
-    for (const std::set<int>& edges : pathPairConstraints)
+    std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache);
+    for (const std::vector<int>& edges : pathPairConstraints)
     {
         std::vector<int> varIndices;
         std::vector<double> coeffs;

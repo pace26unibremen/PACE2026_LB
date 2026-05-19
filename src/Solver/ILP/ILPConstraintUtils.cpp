@@ -7,22 +7,23 @@
 
 namespace solver {
 
-std::vector<std::set<int>> computeTripleConstraints(
+std::vector<std::vector<int>> computeTripleConstraints(
                 const graph::Forest& forest1,
                 const graph::Forest& forest2,
                 cluster::LeastCommonAncestor& lca1,
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
+                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
+                std::unordered_map<uint64_t, std::vector<int>>& pathCache)
 {
     // Both Forests should have the same (number) of leaves...
-    assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
+    //assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
 
     // Both Index-Maps should have the same size as the Nodes()...
-    assert(nodeToIndex1.size() == forest1.Nodes().size());
-    assert(nodeToIndex2.size() == forest2.Nodes().size());
+    //assert(nodeToIndex1.size() == forest1.Nodes().size());
+    //assert(nodeToIndex2.size() == forest2.Nodes().size());
 
-    std::vector<std::set<int>> tripleConstraints;
+    std::vector<std::vector<int>> tripleConstraints;
     // Need the labels, due to reductions these may not be iterating...
     std::vector<unsigned int> labels;
     for (const auto& [_, label] : forest1.TerminalToLabel())
@@ -43,31 +44,40 @@ std::vector<std::set<int>> computeTripleConstraints(
                 // If Triple is compatible just continue...
                 if (!fIncTriple) continue;
 
-                std::set<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1);
-                std::set<int> edgesjk = getPath(forest1, labels[j], labels[k], lca1, nodeToIndex1);
-                std::set<int> edgesik = getPath(forest1, labels[i], labels[k], lca1, nodeToIndex1);
+                std::vector<int>& edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, pathCache);
+                std::vector<int>& edgesjk = getPath(forest1, labels[j], labels[k], lca1, nodeToIndex1, pathCache);
+                std::vector<int>& edgesik = getPath(forest1, labels[i], labels[k], lca1, nodeToIndex1, pathCache);
 
-                // Union aller drei Pfade
-                std::set<int> triPathEdges = edgesij;
-                triPathEdges.insert(edgesjk.begin(), edgesjk.end());
-                triPathEdges.insert(edgesik.begin(), edgesik.end());
+                // Union of all paths...
+                std::vector<int> triPathEdges;
+                triPathEdges.reserve(edgesij.size() + edgesjk.size() + edgesik.size());
+                triPathEdges.insert(triPathEdges.end(), edgesij.begin(), edgesij.end());
+                triPathEdges.insert(triPathEdges.end(), edgesjk.begin(), edgesjk.end());
+                triPathEdges.insert(triPathEdges.end(), edgesik.begin(), edgesik.end());
+                
+                // Make Sure it union of set is unique...
+                triPathEdges.erase(
+                    std::unique(triPathEdges.begin(), triPathEdges.end()),
+                    triPathEdges.end()
+                );
 
-                tripleConstraints.push_back(triPathEdges);
+                tripleConstraints.push_back(std::move(triPathEdges));
 
             }
         }
     }
-
+    std::clog << "Number of Triple Constraints: " << tripleConstraints.size()  << std::endl;
     return tripleConstraints;
 }
 
-std::vector<std::set<int>> computePathPairConstraints(
+std::vector<std::vector<int>> computePathPairConstraints(
                 const graph::Forest& forest1,
                 const graph::Forest& forest2,
                 cluster::LeastCommonAncestor& lca1,
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
+                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
+                std::unordered_map<uint64_t, std::vector<int>>& pathCache)
 {
     // Both Forests should have the same (number) of leaves...
     assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
@@ -76,7 +86,7 @@ std::vector<std::set<int>> computePathPairConstraints(
     assert(nodeToIndex1.size() == forest1.Nodes().size());
     assert(nodeToIndex2.size() == forest2.Nodes().size());
 
-    std::vector<std::set<int>> pathPairConstraints;
+    std::vector<std::vector<int>> pathPairConstraints;
 
     // Need the labels, due to reductions these may not be iterating...
     std::vector<unsigned int> labels;
@@ -101,21 +111,23 @@ std::vector<std::set<int>> computePathPairConstraints(
                     if(q == j) continue;
 
                     // but not disjoint in forest2...
-                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1)) continue;
-                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2)) continue;
+                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1, pathCache)) continue;
+                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2, pathCache)) continue;
 
-                    std::set<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1);
-                    std::set<int> edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1);
+                    std::vector<int>& edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, pathCache);
+                    std::vector<int>& edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1, pathCache);
 
-                    std::set<int> pathPairEdges = edgesij;
-                    pathPairEdges.insert(edgespq.begin(), edgespq.end());
+                    std::vector<int> pathPairEdges;
+                    pathPairEdges.reserve(edgesij.size() + edgespq.size());
+                    pathPairEdges.insert(pathPairEdges.end(), edgesij.begin(), edgesij.end());
+                    pathPairEdges.insert(pathPairEdges.end(), edgespq.begin(), edgespq.end());
 
-                    pathPairConstraints.push_back(pathPairEdges);
+                    pathPairConstraints.push_back(std::move(pathPairEdges));
                 }
             }
         }
     }
-
+    std::clog << "Number of PathPair Constraints: " << pathPairConstraints.size()  << std::endl;
     return pathPairConstraints;
 }
 

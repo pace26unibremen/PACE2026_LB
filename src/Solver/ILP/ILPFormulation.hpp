@@ -34,6 +34,9 @@ class ILPFormulation
         /// \note Must be reinstantiated if forest2 changes.
         std::shared_ptr<cluster::LeastCommonAncestor> lca2;
 
+        /// \brief Cache for getPath() function...
+        mutable std::unordered_map<uint64_t, std::vector<int>> pathCache;
+
     public:
         /// \brief Constructor of ILPFormulation.
         /// \param forest1 First tree of the instance.

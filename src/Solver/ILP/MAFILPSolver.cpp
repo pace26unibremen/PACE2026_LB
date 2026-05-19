@@ -46,11 +46,14 @@ bool MAFILPSolver::solve()
     auto subtreeReduction = solver::SubtreeReductionRule::isApplicable(instance, context);
     if (subtreeReduction)
     {
-        std::clog << "Subtree Recudtion is applicable!" << std::endl;
+        std::clog << "Subtree Reduction is applicable!" << std::endl;
         subtreeReduction->apply();
     }
 
     ILPProblem problem = buildProblem();
+    std::clog << "Number of Variables in Problem:" << problem.nVars() << std::endl;
+    std::clog << "Number of Constraints in Problem:" << problem.nConstraints() << std::endl;
+
     ILPSolution solution        = solveProblem(problem);
     if (!solution.feasible) 
         return false;
