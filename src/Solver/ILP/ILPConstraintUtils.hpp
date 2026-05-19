@@ -50,7 +50,8 @@ std::vector<std::vector<int>> computePathPairConstraints(
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache);
+                std::unordered_map<uint64_t, std::vector<int>>& pathCache1,
+                std::unordered_map<uint64_t, std::vector<int>>& pathCache2);
 
 } // namespace solver
 

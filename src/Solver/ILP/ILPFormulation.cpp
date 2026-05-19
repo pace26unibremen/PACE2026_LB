@@ -13,7 +13,8 @@ ILPFormulation::ILPFormulation(std::shared_ptr<graph::Forest> forest1,
       lca2(std::make_shared<cluster::LeastCommonAncestor>(forest2))
 {
     int numLeaves = forest1->LabelToTerminal().size();
-    pathCache.reserve(numLeaves * (numLeaves - 1) / 2);
+    pathCache1.reserve(numLeaves * (numLeaves - 1) / 2);
+    pathCache2.reserve(numLeaves * (numLeaves - 1) / 2);
 }
 
 ILPProblem ILPFormulation::build() const
@@ -25,7 +26,8 @@ ILPProblem ILPFormulation::build() const
     // NOTE: Assumes Forest::Roots()[0] is the root of the single tree in each forest.
     // Each forest in the instance is expected to contain exactly one tree.
     
-    pathCache.clear();
+    pathCache1.clear();
+    pathCache2.clear();
 
     assert(forest1->Roots().size() == 1);
     assert(forest2->Roots().size() == 1);
@@ -54,7 +56,7 @@ ILPProblem ILPFormulation::build() const
 
     // Triple-Constraints: for every Tripel-Constraint-Set S: ∑_{i∈S} xᵢ ≥ 1
     // NOTE: A constraint here is a set of integers, that represent Variable Indices... 
-    std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache);
+    std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache1);
     for (const std::vector<int>& edges : tripleConstraints)
     {
         std::vector<int> varIndices;
@@ -69,7 +71,7 @@ ILPProblem ILPFormulation::build() const
     }
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
-    std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache);
+    std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache1, pathCache2);
     for (const std::vector<int>& edges : pathPairConstraints)
     {
         std::vector<int> varIndices;

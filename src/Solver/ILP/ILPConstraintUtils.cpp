@@ -56,6 +56,7 @@ std::vector<std::vector<int>> computeTripleConstraints(
                 triPathEdges.insert(triPathEdges.end(), edgesik.begin(), edgesik.end());
                 
                 // Make Sure it union of set is unique...
+                std::sort(triPathEdges.begin(), triPathEdges.end());
                 triPathEdges.erase(
                     std::unique(triPathEdges.begin(), triPathEdges.end()),
                     triPathEdges.end()
@@ -77,7 +78,8 @@ std::vector<std::vector<int>> computePathPairConstraints(
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache)
+                std::unordered_map<uint64_t, std::vector<int>>& pathCache1,
+                std::unordered_map<uint64_t, std::vector<int>>& pathCache2)
 {
     // Both Forests should have the same (number) of leaves...
     assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
@@ -111,17 +113,22 @@ std::vector<std::vector<int>> computePathPairConstraints(
                     if(q == j) continue;
 
                     // but not disjoint in forest2...
-                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1, pathCache)) continue;
-                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2, pathCache)) continue;
-
-                    std::vector<int>& edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, pathCache);
-                    std::vector<int>& edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1, pathCache);
+                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1, pathCache1)) continue;
+                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2, pathCache2)) continue;
+                    
+                    std::vector<int>& edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, pathCache1);
+                    std::vector<int>& edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1, pathCache1);
 
                     std::vector<int> pathPairEdges;
                     pathPairEdges.reserve(edgesij.size() + edgespq.size());
                     pathPairEdges.insert(pathPairEdges.end(), edgesij.begin(), edgesij.end());
                     pathPairEdges.insert(pathPairEdges.end(), edgespq.begin(), edgespq.end());
 
+                    std::sort(pathPairEdges.begin(), pathPairEdges.end());
+                    pathPairEdges.erase(
+                        std::unique(pathPairEdges.begin(), pathPairEdges.end()),
+                        pathPairEdges.end()
+                    );
                     pathPairConstraints.push_back(std::move(pathPairEdges));
                 }
             }
