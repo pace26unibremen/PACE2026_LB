@@ -488,10 +488,7 @@ build_stride:
     # 7) Remove staging directory
     - ssh hpc "rm -rf pace-bench/jobs/$CI_JOB_ID"
 
-    # 8) Check for errors
-    - bash gitlab-ci/bash/check_errors.sh stride-logs/
-
-    # 9) Notify dashboard (best effort, don't fail the job if this fails)
+    # 8) Notify dashboard (best effort, don't fail the job if this fails)
     - |
       curl -X POST "$DASHBOARD_WEBHOOK_URL/api/webhook/notify" \
         -H "X-Webhook-Token: $DASHBOARD_WEBHOOK_SECRET" \
@@ -507,6 +504,9 @@ build_stride:
           '{run_name:$run_name,commit_sha:$commit_sha,branch:$branch,
             commit_message:$commit_message,commit_author:$commit_author,
             commit_timestamp:$commit_timestamp,pipeline_url:$pipeline_url}')" \
+
+    # 9) Check for errors
+    - bash gitlab-ci/bash/check_errors.sh stride-logs/
 
   artifacts:
     when: always
