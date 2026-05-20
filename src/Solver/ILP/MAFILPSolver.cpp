@@ -3,6 +3,7 @@
 #include "../Rule/SubtreeReductionRule.hpp"
 #include "../Context.hpp"
 #include "TreeUtils.hpp"
+#include "TimerUtils.hpp"
 
 // Solver-Header...
 #ifdef USE_EVALMAXSAT
@@ -50,11 +51,17 @@ bool MAFILPSolver::solve()
         subtreeReduction->apply();
     }
 
+    TIMER_START(t_build)
     ILPProblem problem = buildProblem();
+    TIMER_LOG(t_build, "MAFILPSOLVER::build_problem")
+
     std::clog << "Number of Variables in Problem:" << problem.nVars() << std::endl;
     std::clog << "Number of Constraints in Problem:" << problem.nConstraints() << std::endl;
-
+    
+    TIMER_START(t_solve)
     ILPSolution solution        = solveProblem(problem);
+    TIMER_LOG(t_solve, "MAFILPSOLVER::solve_problem")
+
     if (!solution.feasible) 
         return false;
     std::vector<int> cutEdges   = extractCutEdges(solution);

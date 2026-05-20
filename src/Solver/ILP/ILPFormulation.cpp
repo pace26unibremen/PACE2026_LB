@@ -1,6 +1,7 @@
 #include "ILPFormulation.hpp"
 #include "ILPConstraintUtils.hpp"
 #include "TreeUtils.hpp"
+#include "TimerUtils.hpp"
 
 #include <cassert>
 
@@ -56,7 +57,11 @@ ILPProblem ILPFormulation::build() const
 
     // Triple-Constraints: for every Tripel-Constraint-Set S: ∑_{i∈S} xᵢ ≥ 1
     // NOTE: A constraint here is a set of integers, that represent Variable Indices... 
+    
+    TIMER_START(t_triple)
     std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache1);
+    TIMER_LOG(t_triple, "ILPFORMULATION::computeTripleConstraints")
+    
     for (const std::vector<int>& edges : tripleConstraints)
     {
         std::vector<int> varIndices;
@@ -71,7 +76,10 @@ ILPProblem ILPFormulation::build() const
     }
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
+    TIMER_START(t_pathpair)
     std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache1, pathCache2);
+    TIMER_LOG(t_pathpair, "ILPFORMULATION::computeTripleConstraints")
+
     for (const std::vector<int>& edges : pathPairConstraints)
     {
         std::vector<int> varIndices;
