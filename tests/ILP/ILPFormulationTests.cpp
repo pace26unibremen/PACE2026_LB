@@ -234,20 +234,11 @@ TEST_CASE("ILPFormulation::build", "[ILPFormulation]")
             INFO("constraint must reference at least one variable");
             REQUIRE(!constraint.varIndices.empty());
 
-            INFO("coefficients and varIndices must have same size");
-            REQUIRE(constraint.varIndices.size() == constraint.coeffs.size());
-
             INFO("all variable indices must be in valid range");
             for (int idx : constraint.varIndices)
             {
                 REQUIRE(idx >= 0);
                 REQUIRE(idx < problem.nVars());
-            }
-
-            INFO("all coefficients must be 1.0");
-            for (double coeff : constraint.coeffs)
-            {
-                REQUIRE(coeff == 1.0);
             }
         }
 

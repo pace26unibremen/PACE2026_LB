@@ -47,13 +47,11 @@ ILPProblem ILPFormulation::build() const
     }
 
     //========= 2. Add Constraints ========
-    int conNum = 0;
 
     // Root-Constraint: x_root <= 0
     int rootIndex = getRootIndex(*forest1);
     std::vector<int> varIndices = { rootIndex };
-    std::vector<double> coeffs = { 1.0 };
-    problem.addConstraint(conNum++, varIndices, coeffs, 0.0, false);
+    problem.addConstraint(varIndices, 0.0, false);
 
     // Triple-Constraints: for every Tripel-Constraint-Set S: ∑_{i∈S} xᵢ ≥ 1
     // NOTE: A constraint here is a set of integers, that represent Variable Indices... 
@@ -65,14 +63,12 @@ ILPProblem ILPFormulation::build() const
     for (const std::vector<int>& edges : tripleConstraints)
     {
         std::vector<int> varIndices;
-        std::vector<double> coeffs;
-        // Add each edge to varIndices and coeffs...
+        // Add each edge to varIndices...
         for (int edge : edges)
         {
             varIndices.push_back(edge);
-            coeffs.push_back(1.0);
         }
-        problem.addConstraint(conNum++, varIndices, coeffs, 1.0, true);
+        problem.addConstraint(varIndices, 1.0, true);
     }
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
@@ -83,14 +79,12 @@ ILPProblem ILPFormulation::build() const
     for (const std::vector<int>& edges : pathPairConstraints)
     {
         std::vector<int> varIndices;
-        std::vector<double> coeffs;
-        // Add each edge to varIndices and coeffs...
+        // Add each edge to varIndices...
         for (int edge : edges)
         {
             varIndices.push_back(edge);
-            coeffs.push_back(1.0);
         }
-        problem.addConstraint(conNum++, varIndices, coeffs, 1.0, true);
+        problem.addConstraint( varIndices, 1.0, true);
     }
 
     // Return problem-object.

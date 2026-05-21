@@ -31,12 +31,12 @@ ILPSolution SCIPSolver::solve(const ILPProblem problem)
         setupVar(var.varNum, var.varName.c_str(), var.objCoeff, var.isBinary);
     }
     // Add Constraints...
-    for (const ILPConstraint& constraint : problem.constraints)
-    {
-        // Make sure constraint is referencing variables...
-        assert(!constraint.varIndices.empty());
-
-        addConstraint(constraint.conNum, constraint.varIndices, constraint.coeffs, constraint.rhsValue, constraint.isLowerBound);
+    for (int i = 0; i < problem.constraints.size(); i++)
+    {   
+        const ILPConstraint& constraint = problem.constraints[i];
+        std::vector<double> coeffs(constraint.varIndices.size(), 1.0);
+    
+        addConstraint(i, constraint.varIndices, coeffs, constraint.rhsValue, constraint.isLowerBound);
     }
 
     // Solve the Problem...

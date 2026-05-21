@@ -30,15 +30,9 @@ struct ILPVariable
 /// \brief Represents a Constraint for ILP Formulation.
 struct ILPConstraint 
 {
-    /// \brief Constraint number (for identification)
-    int conNum;
 
     /// \brief Indizes of variables included in constraint.
     std::vector<int> varIndices;
-
-    /// \brief Coefficients of each variable in constraint.
-    /// \note Currently every coefficient should be 1.0.
-    std::vector<double> coeffs;
 
     /// \brief Right-hand side value. 
     double rhsValue;
@@ -80,11 +74,10 @@ struct ILPProblem
     void addVariable(int varNum, std::string varName, double objCoeff = 1.0, bool isBinary = true);
 
     /// \brief Adds a Constraint to the problem.
-    /// \param conNum Index of Constraint.
     /// \param varIndices List of Variables included in Constraint.
     /// \param rhsValue Right hand-side value.
     /// \param isLowerBound Direction of inequality.
-    void addConstraint(int conNum, std::vector<int> varIndices, std::vector<double> coeffs, double rhsValue, bool isLowerBound);
+    void addConstraint(std::vector<int> varIndices, double rhsValue, bool isLowerBound);
 };
 
 /// \brief Represents the ILP Solution.
