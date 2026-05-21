@@ -78,7 +78,7 @@ ILPProblem ILPFormulation::build() const
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
     TIMER_START(t_pathpair)
     std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache1, pathCache2);
-    TIMER_LOG(t_pathpair, "ILPFORMULATION::computeTripleConstraints")
+    TIMER_LOG(t_pathpair, "ILPFORMULATION::computePathPairConstraints")
 
     for (const std::vector<int>& edges : pathPairConstraints)
     {

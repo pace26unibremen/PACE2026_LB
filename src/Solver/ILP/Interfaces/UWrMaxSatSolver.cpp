@@ -37,6 +37,7 @@ ILPSolution UWrMaxSatSolver::solve(const ILPProblem problem)
     // Setup for IPAMIR Solver...
     UWrMaxSatSolver::setupPreprocessedProblem(solver, data);
 
+    std::clog << "Starting Solve..."  << std::endl;
     int result = ipamir_solve(solver);
 
     if (result == 20 || result == 0) {
@@ -52,6 +53,7 @@ ILPSolution UWrMaxSatSolver::solve(const ILPProblem problem)
     // Suppress Solver output (o X lines)
     std::streambuf* oldBuf = std::cout.rdbuf(nullptr);
 
+    std::clog << "Starting Solve..."  << std::endl;
     // Start solve...
     int result = ipamir_solve(solver);
 

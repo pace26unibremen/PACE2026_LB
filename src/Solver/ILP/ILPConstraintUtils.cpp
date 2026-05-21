@@ -23,6 +23,8 @@ std::vector<std::vector<int>> computeTripleConstraints(
     //assert(nodeToIndex1.size() == forest1.Nodes().size());
     //assert(nodeToIndex2.size() == forest2.Nodes().size());
 
+    std::clog << "Starting compute triple constraints..."  << std::endl;
+
     std::vector<std::vector<int>> tripleConstraints;
     // Need the labels, due to reductions these may not be iterating...
     std::vector<unsigned int> labels;
@@ -81,6 +83,8 @@ std::vector<std::vector<int>> computePathPairConstraints(
                 std::unordered_map<uint64_t, std::vector<int>>& pathCache1,
                 std::unordered_map<uint64_t, std::vector<int>>& pathCache2)
 {
+
+    std::clog << "Starting compute pathpair constraints..."  << std::endl;
     // Both Forests should have the same (number) of leaves...
     assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
 

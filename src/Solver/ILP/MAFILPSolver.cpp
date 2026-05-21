@@ -57,7 +57,6 @@ bool MAFILPSolver::solve()
 
     std::clog << "Number of Variables in Problem:" << problem.nVars() << std::endl;
     std::clog << "Number of Constraints in Problem:" << problem.nConstraints() << std::endl;
-    
     TIMER_START(t_solve)
     ILPSolution solution        = solveProblem(problem);
     TIMER_LOG(t_solve, "MAFILPSOLVER::solve_problem")

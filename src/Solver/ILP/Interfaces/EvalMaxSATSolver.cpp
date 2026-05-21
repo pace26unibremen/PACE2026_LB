@@ -19,6 +19,7 @@ ILPSolution EvalMaxSATSolver::solve(const ILPProblem problem)
     // Suppress EvalMaxSAT output (o X lines)
     std::streambuf* oldBuf = std::cout.rdbuf(nullptr);
 
+    std::clog << "Starting Solve..."  << std::endl;
     // Start solve...
     bool sat = solver.solve();
 
