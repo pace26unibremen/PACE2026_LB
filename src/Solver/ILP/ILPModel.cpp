@@ -7,9 +7,11 @@ void solver::ILPProblem::addVariable(int varNum, std::string varName,
     vars.push_back(var);
 }
 
-void solver::ILPProblem::addConstraint(std::vector<int> varIndices, double rhsValue, bool isLowerBound)
+void solver::ILPProblem::addConstraint(std::vector<int> varIndices, double rhsValue, bool isLowerBoundCon)
 {
-    ILPConstraint constraint = {varIndices, rhsValue, isLowerBound};
-    constraints.push_back(constraint);
+        constraintStart.push_back(allVarIndices.size());
+        allVarIndices.insert(allVarIndices.end(), varIndices.begin(), varIndices.end());
+        rhsValues.push_back(rhsValue);
+        isLowerBound.push_back(isLowerBoundCon);
 }
 

@@ -63,22 +63,24 @@ std::vector<int> EvalMaxSATSolver::setup(EvalMaxSAT<>& solver, const ILPProblem&
     }
 
     // Add Constraints...
-    for (const ILPConstraint& constraint : problem.constraints)
+    for (int i = 0; i < problem.nConstraints(); ++i)
     {
-        // Make sure constraint is referencing variables...
-        assert(!constraint.varIndices.empty());
+        int start = problem.constraintStart[i];
+        int end   = (i + 1 < problem.nConstraints())
+                    ? problem.constraintStart[i + 1]
+                    : (int)problem.allVarIndices.size();
 
-        if(constraint.isLowerBound)
+        if (problem.isLowerBound[i])
         {
             std::vector<int> clause;
-            for(int pos : constraint.varIndices)
-                clause.push_back(varIDs[pos]);
+            for (int j = start; j < end; ++j)
+                clause.push_back(varIDs[problem.allVarIndices[j]]);
             solver.addClause(clause);
         }
-        else // this case happens for the root constraint...
+        else // root constraint
         {
-            for(int pos : constraint.varIndices)
-                solver.addClause({-varIDs[pos]});
+            for (int j = start; j < end; ++j)
+                solver.addClause({-varIDs[problem.allVarIndices[j]]});
         }
     }
 

@@ -27,21 +27,6 @@ struct ILPVariable
     bool isBinary = true;
 };
 
-/// \brief Represents a Constraint for ILP Formulation.
-struct ILPConstraint 
-{
-
-    /// \brief Indizes of variables included in constraint.
-    std::vector<int> varIndices;
-
-    /// \brief Right-hand side value. 
-    double rhsValue;
-
-    /// \brief Indicates direction of inequality.
-    /// \note true = ≥, false = ≤
-    bool isLowerBound;
-};
-
 /// \brief Represents the ILP Problem Formulation.
 /// Build by ILPFormulation and passed to all Solvers.
 struct ILPProblem 
@@ -53,8 +38,11 @@ struct ILPProblem
     /// \brief Vector of Variables.
     std::vector<ILPVariable> vars;
 
-    /// \brief Vector of Constraints.
-    std::vector<ILPConstraint> constraints;
+    /// \brief Flat Constraints...
+    std::vector<int> allVarIndices;      
+    std::vector<int> constraintStart;
+    std::vector<double> rhsValues;
+    std::vector<bool> isLowerBound;
 
     /// \brief Returns the number of variables in the problem.
     /// \return Number of variables.
@@ -64,7 +52,7 @@ struct ILPProblem
     /// \brief Returns the number of constraints in the problem.
     /// \return Number of constraints.
     [[nodiscard]] 
-    int nConstraints() const { return constraints.size(); }   
+    int nConstraints() const { return rhsValues.size(); }   
 
     /// \brief Adds a Variable to the problem.
     /// \param varNum Index of Variable.
@@ -76,8 +64,8 @@ struct ILPProblem
     /// \brief Adds a Constraint to the problem.
     /// \param varIndices List of Variables included in Constraint.
     /// \param rhsValue Right hand-side value.
-    /// \param isLowerBound Direction of inequality.
-    void addConstraint(std::vector<int> varIndices, double rhsValue, bool isLowerBound);
+    /// \param isLowerBoundCon Direction of inequality.
+    void addConstraint(std::vector<int> varIndices, double rhsValue, bool isLowerBoundCon);
 };
 
 /// \brief Represents the ILP Solution.

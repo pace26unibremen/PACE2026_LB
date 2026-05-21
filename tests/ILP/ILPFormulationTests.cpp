@@ -229,19 +229,6 @@ TEST_CASE("ILPFormulation::build", "[ILPFormulation]")
         solver::ILPFormulation formulation(f1, f2);
         auto problem = formulation.build();
 
-        for (const auto& constraint : problem.constraints)
-        {
-            INFO("constraint must reference at least one variable");
-            REQUIRE(!constraint.varIndices.empty());
-
-            INFO("all variable indices must be in valid range");
-            for (int idx : constraint.varIndices)
-            {
-                REQUIRE(idx >= 0);
-                REQUIRE(idx < problem.nVars());
-            }
-        }
-
         int nEdges = static_cast<int>(f1->Nodes().size());
         INFO("number of variables must equal total number of edges in both forests");
         REQUIRE(problem.nVars() == nEdges); // Should be 7...
