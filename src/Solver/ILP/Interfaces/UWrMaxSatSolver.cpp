@@ -107,24 +107,24 @@ std::vector<int> UWrMaxSatSolver::setup(void* solver, const ILPProblem& problem)
     }
 
     // Add Constraints...
-    for (int i = 0; i < problem.nConstraints(); ++i)
+    for (const ILPConstraint& constraint : problem.constraints)
     {
-        int start = problem.constraintStart[i];
-        int end   = (i + 1 < problem.nConstraints()) 
-                    ? problem.constraintStart[i + 1] 
-                    : (int)problem.allVarIndices.size();
+        // Make sure constraint is referencing variables...
+        assert(!constraint.varIndices.empty());
 
-        if (problem.isLowerBound[i])
+        if (constraint.isLowerBound)
         {
-            for (int j = start; j < end; ++j)
-                ipamir_add_hard(solver, varIDs[problem.allVarIndices[j]]);
-            ipamir_add_hard(solver, 0);
+            
+            for (int pos : constraint.varIndices)
+                ipamir_add_hard(solver, varIDs[pos]);
+            ipamir_add_hard(solver, 0);  // finish clause
         }
         else
         {
-            for (int j = start; j < end; ++j)
+            // Root constraint: Variable muss false sein
+            for (int pos : constraint.varIndices)
             {
-                ipamir_add_hard(solver, -varIDs[problem.allVarIndices[j]]);
+                ipamir_add_hard(solver, -varIDs[pos]);  
                 ipamir_add_hard(solver, 0);
             }
         }
@@ -154,20 +154,14 @@ UWrMaxSatSolver::MaxPreData UWrMaxSatSolver::buildMaxPre(const ILPProblem& probl
     }
 
     // Hard clauses (Constraints)
-    for (int i = 0; i < problem.nConstraints(); ++i)
-    {
-        int start = problem.constraintStart[i];
-        int end   = (i + 1 < problem.nConstraints()) 
-                    ? problem.constraintStart[i + 1] 
-                    : (int)problem.allVarIndices.size();
-
+    for (const ILPConstraint& constraint : problem.constraints) {
         std::vector<int> clause;
-        if (problem.isLowerBound[i]) {
-            for (int j = start; j < end; ++j)
-                clause.push_back(varIDs[problem.allVarIndices[j]]);
+        if (constraint.isLowerBound) {
+            for (int pos : constraint.varIndices)
+                clause.push_back(varIDs[pos]);
         } else {
-            for (int j = start; j < end; ++j)
-                clause.push_back(-varIDs[problem.allVarIndices[j]]);
+            for (int pos : constraint.varIndices)
+                clause.push_back(-varIDs[pos]);
         }
         clauses.push_back(clause);
         weights.push_back(data.topWeight);

@@ -62,7 +62,13 @@ ILPProblem ILPFormulation::build() const
     
     for (const std::vector<int>& edges : tripleConstraints)
     {
-        problem.addConstraint(edges, 1.0, true);
+        std::vector<int> varIndices;
+        // Add each edge to varIndices...
+        for (int edge : edges)
+        {
+            varIndices.push_back(edge);
+        }
+        problem.addConstraint(varIndices, 1.0, true);
     }
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
@@ -72,7 +78,13 @@ ILPProblem ILPFormulation::build() const
 
     for (const std::vector<int>& edges : pathPairConstraints)
     {
-        problem.addConstraint(edges, 1.0, true);
+        std::vector<int> varIndices;
+        // Add each edge to varIndices...
+        for (int edge : edges)
+        {
+            varIndices.push_back(edge);
+        }
+        problem.addConstraint( varIndices, 1.0, true);
     }
 
     // Return problem-object.

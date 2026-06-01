@@ -30,20 +30,13 @@ ILPSolution SCIPSolver::solve(const ILPProblem problem)
 
         setupVar(var.varNum, var.varName.c_str(), var.objCoeff, var.isBinary);
     }
-    
     // Add Constraints...
-    for (int i = 0; i < problem.nConstraints(); ++i)
-    {
-        int start = problem.constraintStart[i];
-        int end   = (i + 1 < problem.nConstraints()) 
-                    ? problem.constraintStart[i + 1] 
-                    : (int)problem.allVarIndices.size();
-
-        std::vector<int> varIndices(problem.allVarIndices.begin() + start, 
-                                    problem.allVarIndices.begin() + end);
-        std::vector<double> coeffs(varIndices.size(), 1.0);
-
-        addConstraint(i, varIndices, coeffs, problem.rhsValues[i], problem.isLowerBound[i]);
+    for (int i = 0; i < problem.constraints.size(); i++)
+    {   
+        const ILPConstraint& constraint = problem.constraints[i];
+        std::vector<double> coeffs(constraint.varIndices.size(), 1.0);
+    
+        addConstraint(i, constraint.varIndices, coeffs, constraint.rhsValue, constraint.isLowerBound);
     }
 
     // Solve the Problem...
