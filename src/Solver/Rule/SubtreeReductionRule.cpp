@@ -165,14 +165,20 @@ solver::SubtreeReductionRule::isApplicable(const std::shared_ptr<graph::Instance
         {
             // This case:
             // Each node in current is not actual root, so we have siblings.
-            // But no sibling was seen before, so we don't know if current is maximal or not.
-            // We have to handle this case later.
-
             if (std::none_of(currentSubtree.begin(), currentSubtree.end(),
                              [&seenNodes_diff](const graph::Node* n)
                              { return seenNodes_diff.contains(n->sibling); }))
             {
+                // But no sibling was seen before, so we don't know if current is maximal or not.
+                // We have to handle this case later.
                 identicalSubtreeRoots.emplace(currentSubtree);
+            }
+            else
+            {
+                // There are siblings which are marked as 'not a part of an identical subtree'
+                // So current is maximal
+                maximumSubtree.push_back(currentSubtree);
+                addAncestorSeenDiffNodes(currentSubtree);
             }
         }
         else
@@ -203,8 +209,10 @@ solver::SubtreeReductionRule::isApplicable(const std::shared_ptr<graph::Instance
 
                 allSubtreesOfForest.push_back(identicalSubtrees[i]);
             }
+            if (allSubtreesOfForest.empty()) continue;
             forestToSubtrees.emplace(forest, allSubtreesOfForest);
         }
+        if (forestToSubtrees.empty()) return nullptr;
         return std::make_shared<SubtreeReductionRule>(instance, context, forestToSubtrees);
     }
 
