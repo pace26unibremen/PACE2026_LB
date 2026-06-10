@@ -43,7 +43,6 @@ bool MAFILPSolver::solve()
     
     // Apply Subtree Reduction Rule...
     std::shared_ptr<Context> context = std::make_shared<Context>();
-    std::list<std::shared_ptr<AbstractRule>> appliedReductions;
     auto subtreeReduction = solver::SubtreeReductionRule::isApplicable(instance, context);
     if (subtreeReduction)
     {
@@ -121,7 +120,6 @@ void MAFILPSolver::reconstructMAF(const std::vector<int>& cutEdges)
         DeleteEdgeAction action(child, forestPtr);
         action.doAction();
     }
-
 }
 
 std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solverType)
