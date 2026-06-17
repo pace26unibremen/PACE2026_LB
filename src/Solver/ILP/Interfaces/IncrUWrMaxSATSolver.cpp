@@ -18,7 +18,13 @@ void IncrUWrMaxSatSolver::initSolver()
     solver_ipamir = ipamir_init();
 }
 
-void IncrUWrMaxSatSolver::addSoftLit(int id, double objCoeff)
+void IncrUWrMaxSatSolver::releaseSolver()
+{
+    if (solver_ipamir) 
+        ipamir_release(solver_ipamir);
+}
+
+void IncrUWrMaxSatSolver::addSoftClause(int id, double objCoeff)
 {
     uint64_t weight = static_cast<uint64_t>(objCoeff + 0.5);
     ipamir_add_soft_lit(solver_ipamir, id + 1, weight);
@@ -37,10 +43,8 @@ void IncrUWrMaxSatSolver::addHardClause(const std::vector<int>& varIDs, bool isL
     {
         // force-false: jedes Literal einzeln als Unit-Klausel
         for (int var : varIDs)
-        {
             ipamir_add_hard(solver_ipamir, -(var + 1));
-            ipamir_add_hard(solver_ipamir, 0);
-        }
+        ipamir_add_hard(solver_ipamir, 0);
     }
 }
 
@@ -62,7 +66,7 @@ ILPSolution IncrUWrMaxSatSolver::solve(int numVars)
 
     for (int i = 0; i < numVars; ++i)
     {
-        int val = ipamir_val_lit(solver, i+1);
+        int val = ipamir_val_lit(solver_ipamir, i+1);
         sol.solValues[i] = (val > 0) ? 1.0 : 0.0;
     }
 

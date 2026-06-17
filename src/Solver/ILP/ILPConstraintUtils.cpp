@@ -13,8 +13,7 @@ std::vector<std::vector<int>> computeTripleConstraints(
                 cluster::LeastCommonAncestor& lca1,
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache)
+                const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
 {
     // Both Forests should have the same (number) of leaves...
     //assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
@@ -46,9 +45,9 @@ std::vector<std::vector<int>> computeTripleConstraints(
                 // If Triple is compatible just continue...
                 if (!fIncTriple) continue;
 
-                std::vector<int>& edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, pathCache);
-                std::vector<int>& edgesjk = getPath(forest1, labels[j], labels[k], lca1, nodeToIndex1, pathCache);
-                std::vector<int>& edgesik = getPath(forest1, labels[i], labels[k], lca1, nodeToIndex1, pathCache);
+                std::vector<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1);
+                std::vector<int> edgesjk = getPath(forest1, labels[j], labels[k], lca1, nodeToIndex1);
+                std::vector<int> edgesik = getPath(forest1, labels[i], labels[k], lca1, nodeToIndex1);
 
                 // Union of all paths...
                 std::vector<int> triPathEdges;
@@ -79,9 +78,7 @@ std::vector<std::vector<int>> computePathPairConstraints(
                 cluster::LeastCommonAncestor& lca1,
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache1,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache2)
+                const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
 {
 
     std::clog << "Starting compute pathpair constraints..."  << std::endl;
@@ -117,11 +114,11 @@ std::vector<std::vector<int>> computePathPairConstraints(
                     if(q == j) continue;
 
                     // but not disjoint in forest2...
-                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1, pathCache1)) continue;
-                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2, pathCache2)) continue;
+                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1)) continue;
+                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2)) continue;
                     
-                    std::vector<int>& edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, pathCache1);
-                    std::vector<int>& edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1, pathCache1);
+                    std::vector<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1);
+                    std::vector<int> edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1);
 
                     std::vector<int> pathPairEdges;
                     pathPairEdges.reserve(edgesij.size() + edgespq.size());

@@ -14,8 +14,6 @@ ILPFormulation::ILPFormulation(std::shared_ptr<graph::Forest> forest1,
       lca2(std::make_shared<cluster::LeastCommonAncestor>(forest2))
 {
     int numLeaves = forest1->LabelToTerminal().size();
-    pathCache1.reserve(numLeaves * (numLeaves - 1) / 2);
-    pathCache2.reserve(numLeaves * (numLeaves - 1) / 2);
 }
 
 ILPProblem ILPFormulation::build() const
@@ -26,9 +24,6 @@ ILPProblem ILPFormulation::build() const
 
     // NOTE: Assumes Forest::Roots()[0] is the root of the single tree in each forest.
     // Each forest in the instance is expected to contain exactly one tree.
-    
-    pathCache1.clear();
-    pathCache2.clear();
 
     assert(forest1->Roots().size() == 1);
     assert(forest2->Roots().size() == 1);
@@ -57,7 +52,7 @@ ILPProblem ILPFormulation::build() const
     // NOTE: A constraint here is a set of integers, that represent Variable Indices... 
     
     TIMER_START(t_triple)
-    std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache1);
+    std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2);
     TIMER_LOG(t_triple, "ILPFORMULATION::computeTripleConstraints")
     
     for (const std::vector<int>& edges : tripleConstraints)
@@ -73,7 +68,7 @@ ILPProblem ILPFormulation::build() const
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
     TIMER_START(t_pathpair)
-    std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2, pathCache1, pathCache2);
+    std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2);
     TIMER_LOG(t_pathpair, "ILPFORMULATION::computePathPairConstraints")
 
     for (const std::vector<int>& edges : pathPairConstraints)

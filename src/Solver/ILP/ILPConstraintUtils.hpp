@@ -29,8 +29,7 @@ std::vector<std::vector<int>> computeTripleConstraints(
                 cluster::LeastCommonAncestor& lca1,
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache);
+                const std::unordered_map<const graph::Node*, int>& nodeToIndex2);
 
 /// \brief Computes path-pair constraints from the two trees.
 /// \param forest1 First Tree (Forest) of binary MAF-Problem.
@@ -49,9 +48,7 @@ std::vector<std::vector<int>> computePathPairConstraints(
                 cluster::LeastCommonAncestor& lca1,
                 cluster::LeastCommonAncestor& lca2,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache1,
-                std::unordered_map<uint64_t, std::vector<int>>& pathCache2);
+                const std::unordered_map<const graph::Node*, int>& nodeToIndex2);
 
 } // namespace solver
 

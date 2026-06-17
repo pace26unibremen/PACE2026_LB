@@ -94,6 +94,26 @@ void Forest::dot(const string& path) const
     outStream.close();
 }
 
+void Forest::dotMaxSAT(ostream& stream, 
+                          const std::vector<int>& cutEdgeIndices,
+                          const std::unordered_map<int, Node*>& indexToNode) const
+{
+    ForestIO::WriteDotMaxSAT(*this, stream, cutEdgeIndices, indexToNode);
+}
+
+void Forest::dotMaxSAT(const string& path, 
+                          const std::vector<int>& cutEdgeIndices,
+                          const std::unordered_map<int, Node*>& indexToNode) const
+{
+    std::ofstream outStream(path);
+    if (!outStream.is_open())
+    {
+        throw std::invalid_argument("Forest : dotMaxSAT : couldn't open file");
+    }
+    dotMaxSAT(outStream, cutEdgeIndices, indexToNode);
+    outStream.close();
+}
+
 // ------------------------------------------------------------- //
 // ---- access to member fields -------------------------------- //
 // ------------------------------------------------------------- //

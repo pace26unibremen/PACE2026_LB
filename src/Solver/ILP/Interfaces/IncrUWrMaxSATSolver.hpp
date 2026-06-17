@@ -13,11 +13,10 @@ public:
     ~IncrUWrMaxSatSolver() override;
 
     void initSolver() override;
+    void releaseSolver() override;
     void addSoftClause(int id, double objCoeff) override;
     void addHardClause(const std::vector<int>& varIDs, bool isLowerBound) override;
     ILPSolution solve(int numVars) override;
-    int getVarVal(int var) const override;
-    double getCost() const override;
 
 private:
     void* solver_ipamir = nullptr;

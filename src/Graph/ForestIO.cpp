@@ -313,3 +313,94 @@ void ForestIO::WriteDotSubgraph(const Forest& forest, ostream& stream, std::stri
     }
     stream << "}" << endl;
 }
+
+void ForestIO::WriteDotMaxSAT(const Forest& forest, ostream& stream, 
+                        const std::vector<int>& cutEdgeIndices,
+                        const std::unordered_map<int, Node*>& indexToNode)
+{
+    stream << "digraph Tree {\n"
+           << "splines = false\n\n";
+
+    std::string subgraphParams =
+        "style=invis;\n"
+        "node [\n"
+        "   shape = circle,\n"
+        "   fontsize = 15,\n"
+        "   label = \"\",\n"
+        "   height = 0.1,\n"
+        "   fillcolor = \"#00000022\",\n"
+        "   style = filled,\n"
+        "   fixedsize = true,\n"
+        "   labelloc = t];\n"
+        "edge [arrowhead = none];\n\n";
+
+    WriteDotMaxSATSubgraph(forest, stream, subgraphParams, cutEdgeIndices, indexToNode);
+    stream << "}" << endl;
+}
+
+void ForestIO::WriteDotMaxSATSubgraph(const Forest& forest, ostream& stream, 
+                                 std::string subgraphParams,
+                                 const std::vector<int>& cutEdgeIndices,
+                                 const std::unordered_map<int, Node*>& indexToNode)
+{
+    // Set von Nodes die geschnitten werden sollen (für O(1) Lookup)
+    std::set<Node*> cutNodes;
+    for (int idx : cutEdgeIndices)
+    {
+        auto it = indexToNode.find(idx);
+        if (it != indexToNode.end())
+            cutNodes.insert(it->second);
+    }
+
+    stream << "subgraph forest_" << &forest << " {\n"
+           << "cluster=true;\n"
+           << subgraphParams << "\n";
+
+    stream << "inv_" << &forest << " [style = invis];\n\n";
+
+    std::stack<Node*> siblings;
+    for (auto t : forest.Roots())
+    {
+        auto current = t;
+        while (current)
+        {
+            if (forest.TerminalToLabel().contains(current))
+            {
+                stream << "n" << current << " [label = \"" << forest.TerminalToLabel().at(current) << "\\n\\n\\n \"];\n";
+                stream << "n" << current << " -> inv_" << &forest << " [style = invis];\n";
+            }
+
+            if (current->rightChild)
+            {
+                bool isCut = cutNodes.count(current->rightChild) > 0;
+                stream << "n" << current << " -> n" << current->rightChild;
+                if (isCut)
+                    stream << " [color=red, penwidth=3]";
+                stream << ";\n";
+                siblings.push(current->rightChild);
+            }
+            if (current->leftChild)
+            {
+                bool isCut = cutNodes.count(current->leftChild) > 0;
+                stream << "n" << current << " -> n" << current->leftChild;
+                if (isCut)
+                    stream << " [color=red, penwidth=3]";
+                stream << ";\n";
+                current = current->leftChild;
+            }
+            else
+            {
+                if (siblings.empty())
+                {
+                    current = nullptr;
+                }
+                else
+                {
+                    current = siblings.top();
+                    siblings.pop();
+                }
+            }
+        }
+    }
+    stream << "}" << endl;
+}

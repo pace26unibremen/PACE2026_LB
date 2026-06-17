@@ -96,11 +96,20 @@ class Forest
     /// \brief Writes forest as .dot graph to a stream.
     /// \param stream the outstream
     void dot(std::ostream& stream) const;
+    
 
     /// \brief Writes forest as .dot graph to a file.
     /// \param path to file
     [[maybe_unused]]
     void dot(const std::string& path) const;
+    
+    void dotMaxSAT(std::ostream& stream, 
+              const std::vector<int>& cutEdgeIndices,
+              const std::unordered_map<int, Node*>& indexToNode) const;
+
+    void dotMaxSAT(const std::string& path, 
+                    const std::vector<int>& cutEdgeIndices,
+                    const std::unordered_map<int, Node*>& indexToNode) const;
 
     // ------------------------------------------------------------- //
     // ---- access to member fields -------------------------------- //

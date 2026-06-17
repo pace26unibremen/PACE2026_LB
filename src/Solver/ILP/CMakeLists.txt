@@ -42,6 +42,36 @@ if(BUILD_UWRMAXSAT)
     )
 endif()
 
+# Incremental UWrMaxSat
+if(BUILD_INCREMENTAL)
+    add_library(ILP_INCREMENTAL 
+        ${ilp_source}
+        IncrementalMAFSolver.cpp
+        Interfaces/IncrUWrMaxSatSolver.cpp
+    )
+    target_link_libraries(ILP_INCREMENTAL Solver Graph Cluster UWrMaxSat)
+    target_compile_definitions(ILP_INCREMENTAL PRIVATE
+        USE_UWRMAXSAT
+        USE_INCR
+        CADICAL
+        NDEBUG
+        _FILE_OFFSET_BITS=64
+        __STDC_FORMAT_MACROS
+        __STDC_LIMIT_MACROS
+    )
+    target_include_directories(ILP_INCREMENTAL PRIVATE
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/cadical/src
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps
+        ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps/minisat
+    )
+    target_compile_options(ILP_INCREMENTAL PRIVATE
+        "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs/Global.h"
+        "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/Main.h"
+    )
+endif()
+
 # SCIP
 if(SCIP_FOUND)
     add_library(ILP_SCIP ${ilp_source} MAFILPSolver.cpp Interfaces/SCIPSolver.cpp)

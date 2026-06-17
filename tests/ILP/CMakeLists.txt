@@ -45,3 +45,16 @@ if(SCIP_FOUND)
         ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
     add_test(NAME ILPSolverSCIPTests COMMAND $<TARGET_FILE:ILPSolverSCIPTests>)
 endif()
+
+# IncrementalSolver Tests
+# Incremental UWrMaxSAT Test
+if(BUILD_INCREMENTAL)
+    add_executable(IncrementalSolverTests IncrementalSolverTests.cpp)
+    target_link_libraries(IncrementalSolverTests PRIVATE
+        Solver ILP_INCREMENTAL Graph Cluster Catch2::Catch2WithMain)
+    target_compile_definitions(IncrementalSolverTests PRIVATE
+        USE_UWRMAXSAT
+        USE_INCR
+        ILP_TEST_DIR="${CMAKE_SOURCE_DIR}/res/tests/ilp/")
+    add_test(NAME IncrementalSolverTests COMMAND $<TARGET_FILE:IncrementalSolverTests>)
+endif()

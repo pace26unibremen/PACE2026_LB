@@ -49,11 +49,10 @@ int getLCA(int leaf1, unsigned int leaf2, const graph::Forest& forest, cluster::
 /// \param nodeToIndex Map that helps extract the Index of edges. 
 /// \note Edge Indizes are different to the labels of leafs!!!
 /// \return Set of edge indices. (empty set if leaf1 == leaf2)
-std::vector<int>& getPath(const graph::Forest& forest,
+std::vector<int> getPath(const graph::Forest& forest,
                       unsigned int leaf1, unsigned int leaf2,
                       cluster::LeastCommonAncestor& lca,
-                      const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-                      std::unordered_map<uint64_t, std::vector<int>>& pathCache);
+                      const std::unordered_map<const graph::Node*, int>& nodeToIndex);
 
 /// \brief Checks whether two paths between leaf pairs are disjoint.
 /// \param forest Forest, that the leaves belong to.
@@ -68,8 +67,7 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
                           unsigned int lpair1, unsigned int rpair1,
                           unsigned int lpair2, unsigned int rpair2,
                           cluster::LeastCommonAncestor& lca,
-                          const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-                          std::unordered_map<uint64_t, std::vector<int>>& pathCache);
+                          const std::unordered_map<const graph::Node*, int>& nodeToIndex);
 
 /// \brief Checks wether Triple of Leaves is topologically incompatible between two trees.
 /// \param forest1 First Tree (Forest) of binary MAF-Problem.

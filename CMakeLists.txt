@@ -23,6 +23,7 @@ option(DEBUG_IMAGE_VIEW_GRAPH
        OFF)
        
 option(BUILD_UWRMAXSAT "Build UWrMaxSat solver" ON)
+option(BUILD_INCREMENTAL "Build incremental UWrMaxSat solver" ON)
 
 find_package(SCIP
         HINTS /usr/local/lib/cmake/scip
@@ -40,7 +41,7 @@ set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wpedantic -g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -Wall")
 
 set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS_COVERAGE}  -fprofile-instr-generate -fcoverage-mapping")

@@ -17,21 +17,37 @@ namespace solver {
 
 /// \brief Available MaxSAT solver.
 enum class MaxSATSolverType {
-    // EvalMaxSAT,
-    UWrMaxSat
+    UWrMaxSAT
 };
+
+
+
+inline std::ostream& operator<<(std::ostream& os, MaxSATSolverType type)
+{
+    switch (type)
+    {
+        case MaxSATSolverType::UWrMaxSAT:  os << "UWrMaxSat";  break;
+        default: os << "Unknown"; break;
+    }
+    return os;
+}
 
 class IncrementalMAFSolver : public AbstractSolver
 {
-    static constexpr int MAX_ROUNDS = 1000;
-    private:
+    struct LeafPair {
+        unsigned int l;
+        unsigned int r;
+    };
 
+    static constexpr int MAX_ROUNDS = 10000;
+    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 10000;
+    private:
+    std::vector<std::vector<int>> constraints;
     std::unique_ptr<AbstractIncrementalSolver> solver;
     std::shared_ptr<graph::Forest> forest_1;
     std::shared_ptr<graph::Forest> forest_2;
     std::unordered_map<const graph::Node*, int> nodeToIndex1;
     std::unordered_map<const graph::Node*, int> nodeToIndex2;
-    std::vector<int> cutEdges;
     /// \brief Precomputed LCA table for forest1.
     /// \note Must be reinstantiated if forest1 changes.
     std::shared_ptr<cluster::LeastCommonAncestor> lca1;
@@ -41,12 +57,6 @@ class IncrementalMAFSolver : public AbstractSolver
     std::shared_ptr<cluster::LeastCommonAncestor> lca2;
 
 
-    /// \brief Cache for getPath() function for forest1...
-    mutable std::unordered_map<uint64_t, std::vector<int>> pathCache1;
-
-    /// \brief Cache for getPath() function for forest2...
-    mutable std::unordered_map<uint64_t, std::vector<int>> pathCache2;
-
     /// \brief Creates the concrete ILP solver based on solverType.
     /// \param solverType The solver type to create.
     void buildSolver(MaxSATSolverType solverType);
@@ -54,37 +64,48 @@ class IncrementalMAFSolver : public AbstractSolver
     /// \brief Adds initial constraints to solver.
     void addInitialConstraints();
 
-    /// \brief Generates Constraints from Violations of MAF-Check...
-    void generateConstraints(std::vector<const graph::Node*> subtreeRoots,
-                                const std::shared_ptr<graph::Forest>& mafSolution);
+    
+    void generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3, bool initial);
+
+    void generatePathPairConstraint(unsigned int lpair1, unsigned int lpair2, 
+                                                          unsigned int rpair1, unsigned int rpair2);
+    int checkTripleConstraints(int numLeaves, int n_constraints, std::vector<unsigned int> labels,
+                                                std::shared_ptr<graph::Forest>mafSolution,
+                                                std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
+                                                std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
+
+    int checkPathPairConstraints(int n_constraints,
+                                                std::shared_ptr<graph::Forest>mafSolution,
+                                                std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
+                                                std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
+    
 
     /// \brief Extracts cut edges from a solution.
     /// \param solution The solution returned by the solver.
-    void extractCutEdges(const ILPSolution& ilpSolution);
+    /// \returns Vector of cut edge indices (0-indexed).
+    [[nodiscard]]
+    std::vector<int> extractCutEdges(const ILPSolution& ilpSolution);
 
     /// \brief Reconstructs the MAF from cut edges.
     /// \param cutEdges The cut edges.
     /// \return 
-    [[nodiscard]]
-    std::shared_ptr<graph::Forest>& reconstructMAF(bool orig);
+    std::shared_ptr<graph::Forest> reconstructMAF(std::vector<int> cutEdges, bool orig);
 
     [[nodiscard]]
-    bool checkMAF(const std::shared_ptr<graph::Forest>& mafSolution);
+    bool checkMAF(std::shared_ptr<graph::Forest>& mafSolution);
 
     [[nodiscard]]
-    bool isSubtreeOfForest(const graph::Node* subtreeRoot, const std::shared_ptr<graph::Forest>& mafSolution, 
-                           const std::shared_ptr<graph::Forest>& forest,
-                           int subtreeID,
-                           int bitmaskSize,
-                           std::unordered_map<const graph::Node*, std::vector<uint64_t>>& nodeToSubtrees);
-    
+    std::vector<LeafPair> generateLeafPairs(std::shared_ptr<graph::Forest>& mafSolution);
+
+    [[nodiscard]]
+    std::vector<unsigned int> getSubtreeLabels(const graph::Node* subtreeRoot);
 
     public:
         /// \brief Constructor.
         /// \param instance The instance to solve.
         /// \param solverType The ILP solver to use.
         IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance,
-                    MaxSATSolverType solverType = MaxSATSolverType::UWrMaxSat);
+                    MaxSATSolverType solverType = MaxSATSolverType::UWrMaxSAT);
 
         /// \brief Solves the instance.
         /// \returns true if solve was successful, otherwise false.

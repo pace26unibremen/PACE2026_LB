@@ -4,6 +4,7 @@
 #include "Forest.hpp"
 #include "filesystem"
 #include "iostream"
+#include <string>
 
 namespace graph
 {
@@ -30,12 +31,21 @@ class ForestIO
     /// \param stream the outstream
     static void WriteDot(const Forest& forest, std::ostream& stream);
 
+    static void WriteDotMaxSAT(const Forest& forest, std::ostream& stream, 
+                        const std::vector<int>& cutEdgeIndices,
+                        const std::unordered_map<int, Node*>& indexToNode);
+
     /// \brief Writes a forest as dot graph to a stream.
     /// It does not construct a complete, valid dot file, but rather a subgraph/cluster within a dot file.
     /// \param forest the instance to write
     /// \param stream the outstream
     /// \param subgraphParams additional parameter to configure the subgraph in dot syntax. (e.g. "style=dotted;\n")
     static void WriteDotSubgraph(const Forest& forest, std::ostream& stream, std::string subgraphParams = "");
+
+    static void WriteDotMaxSATSubgraph(const Forest& forest, std::ostream& stream, 
+                                 std::string subgraphParams,
+                                 const std::vector<int>& cutEdgeIndices,
+                                 const std::unordered_map<int, Node*>& indexToNode);
 };
 
 }  // namespace graph

@@ -1,4 +1,6 @@
-#if defined(USE_EVALMAXSAT) || defined(USE_SCIP) || defined(USE_UWRMAXSAT)
+#if defined(USE_UWRMAXSAT) && defined(USE_INCR)
+#include "Solver/ILP/IncrementalMAFSolver.hpp"
+#elif defined(USE_EVALMAXSAT) || defined(USE_SCIP) || defined(USE_UWRMAXSAT)
 #include "Solver/ILP/MAFILPSolver.hpp"
 #else
 #include "Solver/BranchingSolver.hpp"
@@ -12,7 +14,9 @@ void runOnStream(std::istream& inStream, std::ostream& outStream) {
     auto startTime = std::clock();
     auto instance = graph::ReadInstance(inStream);
 
-#if defined(USE_EVALMAXSAT)
+#if defined(USE_INCR)
+    auto solver = solver::IncrementalMAFSolver(instance, solver::MaxSATSolverType::UWrMaxSAT);
+#elif defined(USE_EVALMAXSAT)
     auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::EvalMaxSAT);
 #elif defined(USE_SCIP)
     auto solver = solver::MAFILPSolver(instance, solver::ILPSolverType::SCIP);

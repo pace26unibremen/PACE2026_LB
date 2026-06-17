@@ -164,17 +164,16 @@ TEST_CASE("getPath", "[TreeUtils]")
         auto map1 = solver::buildNodeToIndexMap(*f1);
         int nEdges = static_cast<int>(f1->Nodes().size());
         int rootIdx = solver::getRootIndex(*f1);
-        std::unordered_map<uint64_t, std::vector<int>> pathCache;
 
         INFO("path to itself should be empty");
         for (const auto& [label, nodePtr] : f1->LabelToTerminal())
         {
-            auto path = solver::getPath(*f1, label, label, lca1, map1, pathCache);
+            auto path = solver::getPath(*f1, label, label, lca1, map1);
             REQUIRE(path.empty());
         }
 
         INFO("path between siblings contains exactly 2 edges (nodes of siblings)");
-        auto path12 = solver::getPath(*f1, 1, 2, lca1, map1, pathCache);
+        auto path12 = solver::getPath(*f1, 1, 2, lca1, map1);
 
         INFO("path between siblings must contain exactly 2 edges");
         REQUIRE(path12.size() == 2);
@@ -187,7 +186,7 @@ TEST_CASE("getPath", "[TreeUtils]")
         REQUIRE(std::find(path12.begin(), path12.end(), idx2) != path12.end());
 
         INFO("path between siblings must be symmetric");
-        auto path21 = solver::getPath(*f1, 2, 1, lca1, map1, pathCache);
+        auto path21 = solver::getPath(*f1, 2, 1, lca1, map1);
         REQUIRE(path12 == path21);
 
         INFO("all edge indices must lie in valid range [0, nEdges) & must be keys in nodeToIndexMap");
@@ -204,7 +203,7 @@ TEST_CASE("getPath", "[TreeUtils]")
         }
 
         INFO("longest path...");
-        auto path13 = solver::getPath(*f1, 1, 3, lca1, map1, pathCache);
+        auto path13 = solver::getPath(*f1, 1, 3, lca1, map1);
         REQUIRE(path13.size() == 4);
 
         INFO("root index must never appear in any path");
@@ -212,7 +211,7 @@ TEST_CASE("getPath", "[TreeUtils]")
         {
             for (const auto& [labelB, ptrB] : f1->LabelToTerminal())
             {
-                auto path = solver::getPath(*f1, labelA, labelB, lca1, map1, pathCache);
+                auto path = solver::getPath(*f1, labelA, labelB, lca1, map1);
                 REQUIRE(std::find(path12.begin(), path12.end(), rootIdx) == path12.end());
             }
         }
@@ -225,19 +224,18 @@ TEST_CASE("getPath", "[TreeUtils]")
         auto map1 = solver::buildNodeToIndexMap(*f1);
         int nEdges = static_cast<int>(f1->Nodes().size());
         int rootIdx = solver::getRootIndex(*f1);
-        std::unordered_map<uint64_t, std::vector<int>> pathCache;
 
         INFO("path to itself should be empty");
         for (const auto& [label, nodePtr] : f1->LabelToTerminal())
         {
-            auto path = solver::getPath(*f1, label, label, lca1, map1, pathCache);
+            auto path = solver::getPath(*f1, label, label, lca1, map1);
             REQUIRE(path.empty());
         }
 
-        auto path12 = solver::getPath(*f1, 1, 2, lca1, map1, pathCache);
-        auto path13 = solver::getPath(*f1, 1, 3, lca1, map1, pathCache);
-        auto path14 = solver::getPath(*f1, 1, 4, lca1, map1, pathCache);
-        auto path15 = solver::getPath(*f1, 1, 5, lca1, map1, pathCache);
+        auto path12 = solver::getPath(*f1, 1, 2, lca1, map1);
+        auto path13 = solver::getPath(*f1, 1, 3, lca1, map1);
+        auto path14 = solver::getPath(*f1, 1, 4, lca1, map1);
+        auto path15 = solver::getPath(*f1, 1, 5, lca1, map1);
 
 
         INFO("monotonicity: path(1,5) > path(1,2) in caterpillar");
@@ -256,45 +254,44 @@ TEST_CASE("areTwoPathsDisjoint", "[TreeUtils]")
     auto f1 = loadForest("ilp_minimal_4leaves.tree", 4, 1);
     cluster::LeastCommonAncestor lca1(f1);
     auto map1 = solver::buildNodeToIndexMap(*f1);
-    std::unordered_map<uint64_t, std::vector<int>> pathCache;
 
     SECTION("ilp_minimal_4leaves: both empty paths should always throw logic_error")
     {
-        REQUIRE_THROWS_AS(solver::areTwoPathsDisjoint(*f1, 1, 1, 2, 2, lca1, map1, pathCache), std::logic_error);
+        REQUIRE_THROWS_AS(solver::areTwoPathsDisjoint(*f1, 1, 1, 2, 2, lca1, map1), std::logic_error);
     }
 
     SECTION("ilp_minimal_4leaves: one empty path should always throw logic_error")
     {
-        REQUIRE_THROWS_AS(solver::areTwoPathsDisjoint(*f1, 1, 1, 1, 2, lca1, map1, pathCache), std::logic_error);
+        REQUIRE_THROWS_AS(solver::areTwoPathsDisjoint(*f1, 1, 1, 1, 2, lca1, map1), std::logic_error);
     }
     
     SECTION("ilp_minimal_4leaves: identical paths should always return false")
     {
-        bool disjoint_1212 = solver::areTwoPathsDisjoint(*f1, 1, 2, 1, 2, lca1, map1, pathCache);
+        bool disjoint_1212 = solver::areTwoPathsDisjoint(*f1, 1, 2, 1, 2, lca1, map1);
         REQUIRE_FALSE(disjoint_1212);
     }
     
     SECTION("ilp_minimal_4leaves: sibling pairs (1,2) and (3,4) are disjoint")
     {
-        bool disjoint_1234 = solver::areTwoPathsDisjoint(*f1, 1, 2, 3, 4, lca1, map1, pathCache);
+        bool disjoint_1234 = solver::areTwoPathsDisjoint(*f1, 1, 2, 3, 4, lca1, map1);
         REQUIRE(disjoint_1234);
     }
     
     SECTION("ilp_minimal_4leaves: shared leaf in paths should always return false")
     {
-        bool disjoint_1223 = solver::areTwoPathsDisjoint(*f1, 1, 2, 2, 3, lca1, map1, pathCache);
+        bool disjoint_1223 = solver::areTwoPathsDisjoint(*f1, 1, 2, 2, 3, lca1, map1);
         REQUIRE_FALSE(disjoint_1223);
     }
     
     SECTION("ilp_minimal_4leaves: shared edge shold always return false")
     {
-        bool disjoint_1324 = solver::areTwoPathsDisjoint(*f1, 1, 3, 2, 4, lca1, map1, pathCache);
+        bool disjoint_1324 = solver::areTwoPathsDisjoint(*f1, 1, 3, 2, 4, lca1, map1);
         REQUIRE_FALSE(disjoint_1324);
     }
     
     SECTION("ilp_minimal_4leaves: symmetrical paths should have the same effect")
     {
-        bool disjoint_4231 = solver::areTwoPathsDisjoint(*f1, 4, 2, 3, 1, lca1, map1, pathCache);
+        bool disjoint_4231 = solver::areTwoPathsDisjoint(*f1, 4, 2, 3, 1, lca1, map1);
         REQUIRE(!disjoint_4231);
     }
 }
