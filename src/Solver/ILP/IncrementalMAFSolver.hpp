@@ -65,7 +65,7 @@ class IncrementalMAFSolver : public AbstractSolver
     void addInitialConstraints();
 
     
-    void generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3, bool initial);
+    void generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3);
 
     void generatePathPairConstraint(unsigned int lpair1, unsigned int lpair2, 
                                                           unsigned int rpair1, unsigned int rpair2);

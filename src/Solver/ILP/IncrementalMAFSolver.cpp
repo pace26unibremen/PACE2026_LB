@@ -60,11 +60,12 @@ bool IncrementalMAFSolver::solve()
             return true;
         }
         
+        buildSolver(MaxSATSolverType::UWrMaxSAT);
         for (auto constraint : constraints)
         {
             solver->addHardClause(constraint, true);
         }
-
+        
         ++cnt;
         if (cnt > MAX_ROUNDS) return false;
     }
@@ -129,7 +130,7 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
             {   
                 if (checkIncompatibleTriple(labels[i], labels[i+1], labels[i+2], (*mafSolution), (*forest_2), (*lca_sol), (*lca2), nodeToIndex_sol, nodeToIndex2))
                 {
-                    generateTripleConstraint(labels[i], labels[i+1], labels[i+2], false);
+                    generateTripleConstraint(labels[i], labels[i+1], labels[i+2]);
                     n_constraints++;
                     if (n_constraints < 0)
                     {
@@ -213,7 +214,7 @@ void IncrementalMAFSolver::addInitialConstraints()
     {   
         if (checkIncompatibleTriple(labels[i], labels[i+1], labels[i+2], (*forest_1), (*forest_2), (*lca1), (*lca2), nodeToIndex1, nodeToIndex2))
         {
-            generateTripleConstraint(labels[i], labels[i+1], labels[i+2], true);
+            generateTripleConstraint(labels[i], labels[i+1], labels[i+2]);
         } 
     }
 }
@@ -231,7 +232,7 @@ int IncrementalMAFSolver::checkTripleConstraints(int numLeaves, int n_constraint
                     {
                         if (checkIncompatibleTriple(labels[i], labels[j], labels[k], (*mafSolution), (*forest_2), (*lca_sol), (*lca2), nodeToIndex_sol, nodeToIndex2))
                         {
-                            generateTripleConstraint(labels[i], labels[j], labels[k], false);
+                            generateTripleConstraint(labels[i], labels[j], labels[k]);
                             n_constraints++;
                             if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
                                 return -1;
@@ -271,7 +272,7 @@ int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints,
 }
 
 
-void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3, bool initial)
+void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3)
 {
     std::vector<int> edgesij = getPath((*forest_1), label1, label2, (*lca1), nodeToIndex1);
     std::vector<int> edgesjk = getPath((*forest_1), label2, label3, (*lca1), nodeToIndex1);
@@ -291,9 +292,7 @@ void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigne
         triPathEdges.end()
     );
     
-    if (initial)
-        solver->addHardClause(triPathEdges, true);
-
+    solver->addHardClause(triPathEdges, true);
     constraints.push_back(triPathEdges);
 }
 
@@ -313,6 +312,7 @@ void IncrementalMAFSolver::generatePathPairConstraint(unsigned int lpair1, unsig
         std::unique(pathPairEdges.begin(), pathPairEdges.end()),
         pathPairEdges.end()
     );
+    solver->addHardClause(pathPairEdges, true);
     constraints.push_back(pathPairEdges);
 }
 
