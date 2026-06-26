@@ -65,7 +65,7 @@ bool MAFILPSolver::solve()
     std::vector<int> cutEdges   = extractCutEdges(solution);
     reconstructMAF(cutEdges);
 
-    std::cout << "MAF recousntructed successfully, trying to undo reductions..." << std::endl;
+    std::cout << "MAF reconstructed successfully, trying to undo reductions..." << std::endl;
     if (subtreeReduction)
     {
         subtreeReduction->unapply();

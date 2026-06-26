@@ -23,7 +23,8 @@ option(DEBUG_IMAGE_VIEW_GRAPH
        OFF)
        
 option(BUILD_UWRMAXSAT "Build UWrMaxSat solver" ON)
-option(BUILD_INCREMENTAL "Build incremental UWrMaxSat solver" ON)
+option(BUILD_INCREMENTAL_UWRMAXSAT "Build incremental UWrMaxSat solver" ON)
+option(BUILD_INCREMENTAL_EVALMAXSAT "Build incremental EvalMaxSat solver" ON)
 
 find_package(SCIP
         HINTS /usr/local/lib/cmake/scip

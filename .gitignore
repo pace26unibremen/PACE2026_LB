@@ -8,3 +8,4 @@ pace26stride
 .log
 LocalConfig.cmake
 debug/
+incremental/

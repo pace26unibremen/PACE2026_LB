@@ -98,8 +98,12 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
 
     // If one path is empty throw logic_error...
     if (path1.empty() || path2.empty())
+    {
+        std::cout << "TreeUtils::areTwoPathsDisjoint: at least one path is empty! \n" <<
+            "Pair 1: " << lpair1 << "," << rpair1 << "\n" <<
+            "Pair 2: " << lpair2 << "," << rpair2 << std::endl; 
         throw std::logic_error("TreeUtils::areTwoPathsDisjoint: at least one path is empty!");
-
+    }
     bool disjoint = !std::any_of(path1.begin(), path1.end(), [&](int x) {
         return std::binary_search(path2.begin(), path2.end(), x);
     }); 

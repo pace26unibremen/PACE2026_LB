@@ -34,12 +34,18 @@ if(SCIP_FOUND)
 endif()
 
 #Target 4: Incremental Solver
-if(BUILD_INCREMENTAL)
-    add_solver_target(solver_incremental 
+if(BUILD_INCREMENTAL_UWRMAXSAT)
+    add_solver_target(solver_incremental_uwrmaxsat 
         "USE_UWRMAXSAT;USE_INCR" 
-        "Solver;ILP_INCREMENTAL;Graph;Cluster")
+        "Solver;ILP_INCREMENTAL_UWRMAXSAT;Graph;Cluster")
 endif()
 
+# Target 5: Incremental EvalMaxSAT
+if(BUILD_INCREMENTAL_EVALMAXSAT)
+    add_solver_target(solver_incremental_evalmaxsat
+        "USE_EVALMAXSAT;USE_INCR"
+        "Solver;ILP_INCREMENTAL_EVALMAXSAT;Graph;Cluster")
+endif()
 add_executable(main main.cpp)
 target_link_libraries(main PRIVATE Solver Graph Cluster)
 target_compile_definitions(main PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")

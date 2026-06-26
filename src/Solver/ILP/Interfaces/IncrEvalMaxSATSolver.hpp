@@ -1,16 +1,19 @@
-#ifndef PACE2026_INCRUWRMAXSATSOLVER_HPP
-#define PACE2026_INCRUWRMAXSATSOLVER_HPP
+#ifndef PACE2026_INCREVALMAXSATSOLVER_HPP
+#define PACE2026_INCREVALMAXSATSOLVER_HPP
 
 #include "../AbstractIncrementalSolver.hpp"
 #include "../ILPModel.hpp"
+#include "EvalMaxSAT.h"
+#include <vector>
+#include <memory>
 
 namespace solver {
 
-class IncrUWrMaxSATSolver : public AbstractIncrementalSolver
+class IncrEvalMaxSATSolver : public AbstractIncrementalSolver
 {
 public:
-    IncrUWrMaxSATSolver() = default;
-    ~IncrUWrMaxSATSolver() override;
+    IncrEvalMaxSATSolver() = default;
+    ~IncrEvalMaxSATSolver() override = default;
 
     void initSolver(int numVars) override;
     void addSoftClause(int id, double objCoeff) override;
@@ -19,10 +22,11 @@ public:
     ILPSolution solve(int numVars) override;
 
 private:
-    void* solver_ipamir = nullptr;
+    EvalMaxSAT<> solver_evalmaxsat;
+    std::unordered_map<int, int> varIDs;
 
-}; // class IncrUWrMaxSatSolver
+}; // class IncrEvalMaxSatSolver
 
 } // namespace solver
 
-#endif // PACE2026_INCRUWRMAXSATSOLVER_HPP
+#endif // PACE2026_INCREVALMAXSATSOLVER_HPP

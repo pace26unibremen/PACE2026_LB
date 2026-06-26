@@ -17,7 +17,8 @@ namespace solver {
 
 /// \brief Available MaxSAT solver.
 enum class MaxSATSolverType {
-    UWrMaxSAT
+    UWrMaxSAT,
+    EvalMaxSAT
 };
 
 
@@ -27,6 +28,7 @@ inline std::ostream& operator<<(std::ostream& os, MaxSATSolverType type)
     switch (type)
     {
         case MaxSATSolverType::UWrMaxSAT:  os << "UWrMaxSat";  break;
+        case MaxSATSolverType::EvalMaxSAT:  os << "UWrMaxSat";  break;
         default: os << "Unknown"; break;
     }
     return os;
@@ -39,10 +41,11 @@ class IncrementalMAFSolver : public AbstractSolver
         unsigned int r;
     };
 
-    static constexpr int MAX_ROUNDS = 10000;
+    static constexpr int MAX_ROUNDS = 100000;
     static constexpr int MAX_CONSTRAINTS_PER_ROUND = 10000;
     private:
     std::vector<std::vector<int>> constraints;
+    int cnt_constraints;
     std::unique_ptr<AbstractIncrementalSolver> solver;
     std::shared_ptr<graph::Forest> forest_1;
     std::shared_ptr<graph::Forest> forest_2;
@@ -74,7 +77,7 @@ class IncrementalMAFSolver : public AbstractSolver
                                                 std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
                                                 std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
 
-    int checkPathPairConstraints(int n_constraints,
+    int checkPathPairConstraints(int n_constraints, bool linear,
                                                 std::shared_ptr<graph::Forest>mafSolution,
                                                 std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
                                                 std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
@@ -104,8 +107,7 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \brief Constructor.
         /// \param instance The instance to solve.
         /// \param solverType The ILP solver to use.
-        IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance,
-                    MaxSATSolverType solverType = MaxSATSolverType::UWrMaxSAT);
+        IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance);
 
         /// \brief Solves the instance.
         /// \returns true if solve was successful, otherwise false.

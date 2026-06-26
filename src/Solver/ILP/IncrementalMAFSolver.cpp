@@ -10,28 +10,27 @@
 #include "TimerUtils.hpp"
 
 // Solver-Header...
+#ifdef USE_UWRMAXSAT
 #include "Interfaces/IncrUWrMaxSATSolver.hpp"
+#endif
+#ifdef USE_EVALMAXSAT
+#include "Interfaces/IncrEvalMaxSATSolver.hpp"
+#endif
 
 #include <cassert>
 #include <stdexcept> 
 #include <iostream>
+#include <chrono>
+#include <limits>
 
 
 namespace solver {
 
 // Constructor...
-IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance,
-                             MaxSATSolverType solverType)
+IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance)
     : AbstractSolver(instance)
 {
-    forest_1 = (*instance)[0];
-    forest_2 = (*instance)[1];
 
-    lca1 = std::make_shared<cluster::LeastCommonAncestor>(forest_1);
-    lca2 = std::make_shared<cluster::LeastCommonAncestor>(forest_2);
-    nodeToIndex1 = buildNodeToIndexMap(*forest_1);
-    nodeToIndex2 = buildNodeToIndexMap(*forest_2);
-    buildSolver(solverType);
 }
 
 // =============================================================================
@@ -39,35 +38,79 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
 // =============================================================================
 bool IncrementalMAFSolver::solve()
 {   
+    auto start = std::chrono::high_resolution_clock::now();
+    /*std::shared_ptr<Context> context = std::make_shared<Context>();
+    auto subtreeReduction = solver::SubtreeReductionRule::isApplicable(instance, context);
+    if (subtreeReduction)
+    {
+        subtreeReduction->apply();
+    }
+    */
+    
+    // Initialise all necessary class members after reduction...
+    forest_1 = (*instance)[0];
+    forest_2 = (*instance)[1];
+    lca1 = std::make_shared<cluster::LeastCommonAncestor>(forest_1);
+    lca2 = std::make_shared<cluster::LeastCommonAncestor>(forest_2);
+    nodeToIndex1 = buildNodeToIndexMap(*forest_1);
+    nodeToIndex2 = buildNodeToIndexMap(*forest_2);
+    cnt_constraints = 0;
+
+    #ifdef USE_UWRMAXSAT
+        buildSolver(MaxSATSolverType::UWrMaxSAT);
+    #else
+        buildSolver(MaxSATSolverType::EvalMaxSAT);
+    #endif
+
     addInitialConstraints();
-    int cnt = 0;
+
+    int cnt = 1;
+
     int numVars = forest_1->Nodes().size();
     //forest_2->dot("debug/debug_forest_2_error.dot");
     while (true)
     {
         ILPSolution sol = solver->solve(numVars);
         auto cutEdges = extractCutEdges(sol);
+
     
         // Debug-Ausgabe...
         //auto indexToNode = buildIndexToNodeMap(*forest_1);
         //forest_1->dotMaxSAT("debug/debug_round_" + std::to_string(cnt) + "_error.dot", cutEdges, indexToNode);
         auto mafSolution = reconstructMAF(cutEdges, false);
-       //mafSolution->dot("debug/debug_solution_round_" + std::to_string(cnt) + "_error.dot");
-    
+        //mafSolution->dot("debug/debug_solution_round_" + std::to_string(cnt) + "_error.dot");
+
+        auto timepoint = std::chrono::high_resolution_clock::now();
+        double timeSec = std::chrono::duration_cast<std::chrono::duration<double>>(timepoint - start).count();
+        std::cout << "#r time passed: " << timeSec << "s \n" << std::endl;
+
+        ++cnt;
+        std::cout << "#r Round: " << cnt << std::endl;
+
         if (checkMAF(mafSolution))
         {
+            std::cout << "#r end \n \n" << "==================================== \n" << std::endl;
+
             reconstructMAF(cutEdges, true);
+            /*if (subtreeReduction)
+            {
+                subtreeReduction->unapply();
+            }
+            */
+
             return true;
         }
         
-        buildSolver(MaxSATSolverType::UWrMaxSAT);
-        for (auto constraint : constraints)
-        {
-            solver->addHardClause(constraint, true);
-        }
+        #ifdef USE_UWRMAXSAT
+            buildSolver(MaxSATSolverType::UWrMaxSAT);
+            for (auto constraint : constraints)
+            {
+                solver->addHardClause(constraint, true);
+            }
+        #endif
         
-        ++cnt;
         if (cnt > MAX_ROUNDS) return false;
+        
     }
 }
 
@@ -78,16 +121,26 @@ void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
     switch(solverType)
     {
         case MaxSATSolverType::UWrMaxSAT:
-            solver = std::make_unique<IncrUWrMaxSatSolver>();
-            break;
+            #ifdef USE_UWRMAXSAT
+                solver = std::make_unique<IncrUWrMaxSATSolver>();
+                break;
+            #else
+                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_EVALMAXSAT");
+            #endif
+        case MaxSATSolverType::EvalMaxSAT:
+            #ifdef USE_EVALMAXSAT
+                solver = std::make_unique<IncrEvalMaxSATSolver>();
+                break;
+            #else
+                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_EVALMAXSAT");
+            #endif
         default:
             throw std::invalid_argument("IncrementalMAFSolver: Unknown ILP solver type");
     }
-
-    solver->initSolver();
+    int numVars = forest_1->Nodes().size();
+    solver->initSolver(numVars);
 
     // Add Soft Constraints...
-    int numVars = forest_1->Nodes().size();
     for(int i = 0; i < numVars; i++) 
     {
         solver->addSoftClause(i, 1.0);
@@ -97,11 +150,13 @@ void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
     int rootIndex = getRootIndex(*forest_1);
     std::vector<int> varIndices = { rootIndex };
     solver->addHardClause(varIndices, false);
+    cnt_constraints++;
 }
 
 bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
 {
     int n_constraints = 0;
+    bool pathpair = false;
     std::shared_ptr<cluster::LeastCommonAncestor> lca_sol = std::make_shared<cluster::LeastCommonAncestor>(mafSolution);
     std::unordered_map<const graph::Node*, int> nodeToIndex_sol = buildNodeToIndexMap(*mafSolution);
 
@@ -121,8 +176,17 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
             n_constraints = checkTripleConstraints(numLeaves, n_constraints, labels, mafSolution, lca_sol, nodeToIndex_sol); 
             if (n_constraints < 0)
             {
+                std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
                 return false;
-            }  
+            }
+            // pathpair = true;
+            // n_constraints = checkPathPairConstraints(n_constraints, true, mafSolution, lca_sol, nodeToIndex_sol);
+            // if (n_constraints < 0)
+            // {
+            //     std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
+            //     std::cout << "#r Pathpair constraints used! " << std::endl;
+            //     return false;
+            // }
         }
         else
         {
@@ -132,28 +196,45 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
                 {
                     generateTripleConstraint(labels[i], labels[i+1], labels[i+2]);
                     n_constraints++;
-                    if (n_constraints < 0)
+                    if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
                     {
+                        std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
                         return false;
                     }
                 } 
             }
+            // pathpair = true;
+            // n_constraints = checkPathPairConstraints(n_constraints, true, mafSolution, lca_sol, nodeToIndex_sol);
+            // if (n_constraints < 0)
+            // {
+            //     std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
+            //     std::cout << "#r Pathpair constraints used! " << std::endl;
+            //     return false;
+            // }
         }
+
     }
 
     if (n_constraints == 0)
-    {
-        n_constraints = checkPathPairConstraints(n_constraints, mafSolution, lca_sol, nodeToIndex_sol);
-        if (n_constraints < 0)
         {
+            pathpair = true;
+            n_constraints = checkPathPairConstraints(n_constraints, true, mafSolution, lca_sol, nodeToIndex_sol);
+            if (n_constraints < 0)
+            {
+                std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
+                std::cout << "#r Pathpair constraints used! " << std::endl;
+                return false;
+            }
+            
+        }
+
+        if (n_constraints > 0)
+        {
+            std::cout << "#r constraints: " << n_constraints << std::endl;
+            if (pathpair)
+                std::cout << "#r Pathpair constraints used! " << std::endl;
             return false;
         }
-    }
-
-    if (n_constraints > 0)
-    {
-        return false;
-    }
 
     return true;
 }
@@ -176,7 +257,6 @@ std::vector<int> IncrementalMAFSolver::extractCutEdges(const ILPSolution& soluti
 
 std::shared_ptr<graph::Forest> IncrementalMAFSolver::reconstructMAF(std::vector<int> cutEdges, bool orig)
 {
-
     auto forestPtr = (*instance)[0];
     if (!orig)
     {
@@ -196,12 +276,13 @@ std::shared_ptr<graph::Forest> IncrementalMAFSolver::reconstructMAF(std::vector<
         DeleteEdgeAction action(child, forestPtr);
         action.doAction();
     }
-    
     return forestPtr;
 }
 
 void IncrementalMAFSolver::addInitialConstraints()
 {
+    std::cout << "#r Round: 1" << std::endl;
+    int n_constraints = 0;
     std::vector<unsigned int> labels;
     for (const auto& [_, label] : (*forest_1).TerminalToLabel())
     {
@@ -215,8 +296,23 @@ void IncrementalMAFSolver::addInitialConstraints()
         if (checkIncompatibleTriple(labels[i], labels[i+1], labels[i+2], (*forest_1), (*forest_2), (*lca1), (*lca2), nodeToIndex1, nodeToIndex2))
         {
             generateTripleConstraint(labels[i], labels[i+1], labels[i+2]);
+            n_constraints++;
         } 
     }
+
+    // for (int i = 0; i + 3 < numLeaves; i += 4)
+    // {   
+    //     if (labels[i] == labels[i+1] || labels[i] == labels[i+3] || labels[i+2] == labels[i+1] || labels[i+2] == labels[i+3]) continue;
+    //     {
+    //         if(!areTwoPathsDisjoint((*forest_1), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca1), nodeToIndex1)) continue;
+    //         if( areTwoPathsDisjoint((*forest_2), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca2), nodeToIndex2)) continue;
+
+    //         generatePathPairConstraint(labels[i], labels[i+1], labels[i+2], labels[i+3]);
+    //         n_constraints++; 
+    //     }
+    // }
+    // std::cout << "#r constraints: " << n_constraints << std::endl;
+    // std::cout << "#r Pathpair constraints used! " << std::endl;
 }
 
 int IncrementalMAFSolver::checkTripleConstraints(int numLeaves, int n_constraints, std::vector<unsigned int> labels,
@@ -243,18 +339,19 @@ int IncrementalMAFSolver::checkTripleConstraints(int numLeaves, int n_constraint
     return n_constraints;
 }
 
-int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints,
+int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints, bool linear,
                                                 std::shared_ptr<graph::Forest>mafSolution,
                                                 std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
                                                 std::unordered_map<const graph::Node*, int> nodeToIndex_sol)
 {
    std::vector<LeafPair> pairs = generateLeafPairs(mafSolution);
-   for (unsigned int i = 0; i < pairs.size(); ++i)
-    {
-        for (unsigned int j = i+1; j < pairs.size(); ++j)
+
+   if (linear)
+   {
+        for (unsigned int i = 0; i+1 < pairs.size(); i += 2)
         {
             const LeafPair& pair1 = pairs[i];
-            const LeafPair& pair2 = pairs[j];
+            const LeafPair& pair2 = pairs[i+1];
 
             if (pair1.l == pair2.l || pair1.l == pair2.r || pair1.r == pair2.l || pair1.r == pair2.r) continue;
             // but not disjoint in forest2...
@@ -265,9 +362,30 @@ int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints,
             n_constraints++;
             if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
                 return -1;
-
         }
-    }
+   }
+   else 
+   {
+    for (unsigned int i = 0; i < pairs.size(); ++i)
+        {
+            for (unsigned int j = i+1; j < pairs.size(); ++j)
+            {
+                const LeafPair& pair1 = pairs[i];
+                const LeafPair& pair2 = pairs[j];
+
+                if (pair1.l == pair2.l || pair1.l == pair2.r || pair1.r == pair2.l || pair1.r == pair2.r) continue;
+                // but not disjoint in forest2...
+                if(!areTwoPathsDisjoint((*mafSolution), pair1.l, pair1.r, pair2.l, pair2.r, (*lca_sol), nodeToIndex_sol)) continue;
+                if( areTwoPathsDisjoint((*forest_2), pair1.l, pair1.r, pair2.l, pair2.r, (*lca2), nodeToIndex2)) continue;
+
+                generatePathPairConstraint(pair1.l, pair1.r, pair2.l, pair2.r);
+                n_constraints++;
+                if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
+                    return -1;
+
+            }
+        }
+   }
     return n_constraints;
 }
 
@@ -293,7 +411,12 @@ void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigne
     );
     
     solver->addHardClause(triPathEdges, true);
-    constraints.push_back(triPathEdges);
+    
+    #ifdef USE_UWRMAXSAT
+        constraints.push_back(triPathEdges);
+    #endif
+    
+    cnt_constraints++;
 }
 
 void IncrementalMAFSolver::generatePathPairConstraint(unsigned int lpair1, unsigned int rpair1, 
@@ -313,7 +436,12 @@ void IncrementalMAFSolver::generatePathPairConstraint(unsigned int lpair1, unsig
         pathPairEdges.end()
     );
     solver->addHardClause(pathPairEdges, true);
-    constraints.push_back(pathPairEdges);
+    
+    #ifdef USE_UWRMAXSAT
+        constraints.push_back(pathPairEdges);
+    #endif
+    
+    cnt_constraints++;
 }
 
 std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPairs(std::shared_ptr<graph::Forest>& mafSolution)

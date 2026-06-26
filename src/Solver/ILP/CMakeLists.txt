@@ -43,14 +43,14 @@ if(BUILD_UWRMAXSAT)
 endif()
 
 # Incremental UWrMaxSat
-if(BUILD_INCREMENTAL)
-    add_library(ILP_INCREMENTAL 
+if(BUILD_INCREMENTAL_UWRMAXSAT)
+    add_library(ILP_INCREMENTAL_UWRMAXSAT 
         ${ilp_source}
         IncrementalMAFSolver.cpp
         Interfaces/IncrUWrMaxSatSolver.cpp
     )
-    target_link_libraries(ILP_INCREMENTAL Solver Graph Cluster UWrMaxSat)
-    target_compile_definitions(ILP_INCREMENTAL PRIVATE
+    target_link_libraries(ILP_INCREMENTAL_UWRMAXSAT Solver Graph Cluster UWrMaxSat)
+    target_compile_definitions(ILP_INCREMENTAL_UWRMAXSAT PRIVATE
         USE_UWRMAXSAT
         USE_INCR
         CADICAL
@@ -59,17 +59,36 @@ if(BUILD_INCREMENTAL)
         __STDC_FORMAT_MACROS
         __STDC_LIMIT_MACROS
     )
-    target_include_directories(ILP_INCREMENTAL PRIVATE
+    target_include_directories(ILP_INCREMENTAL_UWRMAXSAT PRIVATE
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/cadical/src
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps
         ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/cominisatps/minisat
     )
-    target_compile_options(ILP_INCREMENTAL PRIVATE
+    target_compile_options(ILP_INCREMENTAL_UWRMAXSAT PRIVATE
         "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/ADTs/Global.h"
         "SHELL:-include ${CMAKE_SOURCE_DIR}/lib/UWrMaxSat/uwrmaxsat/Main.h"
     )
+endif()
+
+if(BUILD_INCREMENTAL_EVALMAXSAT)
+# Incremental EvalMaxSAT
+add_library(ILP_INCREMENTAL_EVALMAXSAT
+    ${ilp_source}
+    IncrementalMAFSolver.cpp
+    Interfaces/IncrEvalMaxSatSolver.cpp
+)
+target_link_libraries(ILP_INCREMENTAL_EVALMAXSAT Solver Graph Cluster EvalMaxSAT)
+target_compile_definitions(ILP_INCREMENTAL_EVALMAXSAT PRIVATE
+    USE_EVALMAXSAT
+    USE_INCR
+)
+target_include_directories(ILP_INCREMENTAL_EVALMAXSAT PRIVATE
+    ${CMAKE_SOURCE_DIR}/lib/EvalMaxSAT/lib/EvalMaxSAT/src
+    ${CMAKE_SOURCE_DIR}/lib/EvalMaxSAT/lib/MaLib/src
+    ${CMAKE_SOURCE_DIR}/lib/EvalMaxSAT/lib/cadical/src
+)
 endif()
 
 # SCIP

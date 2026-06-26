@@ -14,10 +14,7 @@ class AbstractIncrementalSolver
         virtual ~AbstractIncrementalSolver() = default;
 
         /// \brief Initialises the solver.
-        virtual void initSolver() = 0;
-
-        /// \brief Release solver.
-        virtual void releaseSolver() = 0;
+        virtual void initSolver(int numVars) = 0;
 
         /// \brief Adds a soft clause (minimize number of falsified soft clauses).
         /// \param id Id of variable (positive = var, negative = negated var).
@@ -26,7 +23,9 @@ class AbstractIncrementalSolver
 
         /// \brief Adds a hard clause (must be satisfied).
         /// \param varIDs Literals (positive = var, negative = negated var).
-        virtual void addHardClause(const std::vector<int>& varIDs, bool isLowerBound) = 0;
+        virtual void addHardClause(const std::vector<int>& varIndices, bool isLowerBound) = 0;
+
+        virtual void addAssumptions(const std::vector<double>& solValues) = 0;
 
         /// \brief Solves the current problem.
         /// \param numVars Number of Variables (needed for Solution).
