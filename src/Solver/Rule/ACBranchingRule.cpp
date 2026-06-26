@@ -1,4 +1,4 @@
-#include "PairUnconnectedBranchingRule.hpp"
+#include "ACBranchingRule.hpp"
 
 #include <cassert>
 
@@ -11,7 +11,7 @@ typedef std::tuple<
         std::list<std::shared_ptr<graph::Forest>>>
     affectedForests_type;
 
-solver::PairUnconnectedBranchingRule::PairUnconnectedBranchingRule(
+solver::ACBranchingRule::ACBranchingRule(
     const std::shared_ptr<graph::Instance>& instance,
     const std::shared_ptr<Context>& context,
     const affectedForests_type& affectedForests) :
@@ -21,15 +21,15 @@ solver::PairUnconnectedBranchingRule::PairUnconnectedBranchingRule(
         forestsConnectedLabels(get<2>(affectedForests))
 {}
 
-solver::RuleReturnCode solver::PairUnconnectedBranchingRule::apply()
+solver::RuleReturnCode solver::ACBranchingRule::apply()
 {
     if (this->isApplied)
     {
-        throw std::invalid_argument("PairUnconnectedBranchingRule : apply : rule is already applied");
+        throw std::invalid_argument("ACBranchingRule : apply : rule is already applied");
     }
     if (this->branch >= 2)
     {
-        throw std::invalid_argument("PairUnconnectedBranchingRule : apply : all branches are already visited");
+        throw std::invalid_argument("ACBranchingRule : apply : all branches are already visited");
     }
     isApplied = true;
     branch++;
@@ -40,6 +40,10 @@ solver::RuleReturnCode solver::PairUnconnectedBranchingRule::apply()
             for(const auto& f : forestsConnectedLabels)
             {
                 auto t1 = f->LabelToTerminal()[label1];
+                if (context->protectedEdges.contains(t1))
+                {
+                    return RuleReturnCode::CutBranch;
+                }
                 changes.emplace(t1, f);
                 changes.top().doAction();
             }
@@ -48,8 +52,21 @@ solver::RuleReturnCode solver::PairUnconnectedBranchingRule::apply()
             for(const auto& f : forestsConnectedLabels)
             {
                 auto t2 = f->LabelToTerminal()[label2];
+                if (context->protectedEdges.contains(t2))
+                {
+                    return RuleReturnCode::CutBranch;
+                }
                 changes.emplace(t2, f);
                 changes.top().doAction();
+
+                // we can protect edges to t1
+                // because we already tested all cases where t1 is cut in branch 1
+                const auto t1 = f->LabelToTerminal()[label1];
+                if (not context->protectedEdges.contains(t1))
+                {
+                    edgeProtections.emplace(t1);
+                    context->protectedEdges.emplace(t1);
+                }
             }
             break;
         default:
@@ -59,11 +76,11 @@ solver::RuleReturnCode solver::PairUnconnectedBranchingRule::apply()
     return RuleReturnCode::Continue;
 }
 
-void solver::PairUnconnectedBranchingRule::unapply()
+void solver::ACBranchingRule::unapply()
 {
     if (not this->isApplied)
     {
-        throw std::invalid_argument("PairUnconnectedBranchingRule : unapply : rule is not applied");
+        throw std::invalid_argument("ACBranchingRule : unapply : rule is not applied");
     }
     isApplied = false;
 
@@ -72,11 +89,20 @@ void solver::PairUnconnectedBranchingRule::unapply()
         changes.top().undoAction();
         changes.pop();
     }
+
+    if (branch == 2)
+    {
+        for (const auto& t : edgeProtections)
+        {
+            context->protectedEdges.erase(t);
+        }
+        edgeProtections.clear();
+    }
 }
 
 
 std::shared_ptr<solver::AbstractRule>
-solver::PairUnconnectedBranchingRule::isApplicable(const std::shared_ptr<graph::Instance>& instance,
+solver::ACBranchingRule::isApplicable(const std::shared_ptr<graph::Instance>& instance,
                                                    const std::shared_ptr<Context>& context)
 {
     affectedForests_type af = affectedForests_type();
@@ -123,10 +149,18 @@ solver::PairUnconnectedBranchingRule::isApplicable(const std::shared_ptr<graph::
         return nullptr;
     }
 
-    return std::make_shared<PairUnconnectedBranchingRule>(instance, context, af);
+    return std::make_shared<ACBranchingRule>(instance, context, af);
 }
 
-std::string solver::PairUnconnectedBranchingRule::name() const
+std::string solver::ACBranchingRule::name() const
 {
-    return "PairUnconnectedBranchingRule";
+    return "ACBranchingRule";
+}
+
+std::shared_ptr<solver::AbstractRule> solver::ACBranchingRule::clone() const
+{
+    affectedForests_type af = {label1, label2, forestsConnectedLabels};
+    auto clone = std::make_shared<ACBranchingRule>(instance, context, af);
+    clone->branch = isApplied ? branch - 1 : branch;
+    return clone;
 }

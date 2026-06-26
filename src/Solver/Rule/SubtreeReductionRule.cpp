@@ -223,3 +223,8 @@ std::string solver::SubtreeReductionRule::name() const
 {
     return "SubtreeReductionRule";
 }
+
+std::shared_ptr<solver::AbstractRule> solver::SubtreeReductionRule::clone() const
+{
+    return std::make_shared<SubtreeReductionRule>(instance, context, forestToSubtrees);
+}

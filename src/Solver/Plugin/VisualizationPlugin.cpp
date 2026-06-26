@@ -1,39 +1,39 @@
-#include "DebugPlugin.hpp"
+#include "VisualizationPlugin.hpp"
 
-#include "../Graph/ForestIO.hpp"
-#include "Rule/AbstractBranchingRule.hpp"
+#include "../../Graph/ForestIO.hpp"
+#include "../Rule/AbstractBranchingRule.hpp"
 
 #include <algorithm>
 #include <utility>
 
-solver::DebugPlugin::DebugPlugin(std::string _dirPath)
+solver::plugin::VisualizationPlugin::VisualizationPlugin(std::string dirPath)
 {
-    dirPath = std::move(_dirPath);
-    std::filesystem::create_directories(dirPath);
-    overviewFile = std::ofstream(dirPath + "/overview.dot");
+    this->dirPath = std::move(dirPath);
+    std::filesystem::create_directories(this->dirPath);
+    overviewFile = std::ofstream(this->dirPath + "/overview.dot");
     if (!overviewFile.is_open())
     {
-        throw std::invalid_argument("DebugPlugin : constructor : couldn't open file");
+        throw std::invalid_argument("VisualizationPlugin : constructor : couldn't open file");
     }
 }
 
-void solver::DebugPlugin::writeStateNode()
+void solver::plugin::VisualizationPlugin::writeStateNode()
 {
     overviewFile << "state_" << stateIDs.top()
               << " [style=filled, "
                  "fillcolor=lightblue, "
                  "width=1,"
                  "label = \"" << stateIDs.top() << "\n";
-    for (auto& f : *instance)
+    for (auto& f : *instance_)
     {
         overviewFile << f->Roots().size() << " ";
     }
     overviewFile << "\"];" << std::endl;
 }
 
-void solver::DebugPlugin::writeRuleNode(const std::shared_ptr<AbstractRule>& rule)
+void solver::plugin::VisualizationPlugin::writeRuleNode(const std::shared_ptr<solver::AbstractRule>& rule)
 {
-    if (const auto branchingRule = std::dynamic_pointer_cast<AbstractBranchingRule>(rule))
+    if (const auto branchingRule = std::dynamic_pointer_cast<solver::AbstractBranchingRule>(rule))
     {
         overviewFile << "subgraph rule_" << stateIDs.top() << " {\n"
         << "  cluster=true;\n"
@@ -57,12 +57,12 @@ void solver::DebugPlugin::writeRuleNode(const std::shared_ptr<AbstractRule>& rul
     }
 }
 
-void solver::DebugPlugin::dotInstance(const std::filesystem::path& path)
+void solver::plugin::VisualizationPlugin::dotInstance(const std::filesystem::path& path)
 {
     std::ofstream os(path);
     if (!os.is_open())
     {
-        throw std::invalid_argument("DebugPlugin : dotInstance : couldn't open file");
+        throw std::invalid_argument("VisualizationPlugin : dotInstance : couldn't open file");
     }
 
     os << "digraph Instance {\n"
@@ -71,7 +71,8 @@ void solver::DebugPlugin::dotInstance(const std::filesystem::path& path)
     for (unsigned int i = 0; i < shadowInstance->size(); ++i)
     {
         std::shared_ptr<graph::Forest> forest = shadowInstance->at(i);
-        auto found = std::find(instance->begin(), instance->end(), forest) != instance->end();
+        // forests no longer in the active instance were removed by reductions — render them differently
+        auto found = std::find(instance_->begin(), instance_->end(), forest) != instance_->end();
 
         std::string subgraphParam = (found ? "    style = dotted;\n" : "    style = \"dotted,filled\";\n");
         subgraphParam += "    cluster = true;\n"
@@ -85,17 +86,19 @@ void solver::DebugPlugin::dotInstance(const std::filesystem::path& path)
                          "        fixedsize = true,\n"
                          "        labelloc = t];\n"
                          "    edge [arrowhead = none];\n\n";
-        graph::ForestIO::WriteDotSubgraph(*forest,os, subgraphParam);
+        graph::ForestIO::WriteDotSubgraph(*forest, os, subgraphParam);
     }
     os << "}" << std::endl;
     os.close();
 }
 
-void solver::DebugPlugin::init(const std::shared_ptr<graph::Instance>& _instance)
+void solver::plugin::VisualizationPlugin::init(const std::shared_ptr<graph::Instance>& _instance,
+                                               const std::shared_ptr<solver::Context>& _context)
 {
-    shadowInstance = std::make_shared<graph::Instance>();
-    instance = _instance;
+    AbstractPlugin::init(_instance, _context);
 
+    // keep a snapshot of the initial forests to track which ones get removed
+    shadowInstance = std::make_shared<graph::Instance>();
     for (auto& f : *_instance) shadowInstance->push_back(f);
 
     overviewFile << "digraph overview {\n"
@@ -109,15 +112,15 @@ void solver::DebugPlugin::init(const std::shared_ptr<graph::Instance>& _instance
     dotInstance(dirPath + "/start.dot");
 }
 
-void solver::DebugPlugin::onApply(const std::shared_ptr<solver::AbstractRule>& rule)
+void solver::plugin::VisualizationPlugin::onApply(const std::shared_ptr<solver::AbstractRule>& rule)
 {
     writeRuleNode(rule);
     maxStateId++;
-    if (auto branchingRule = std::dynamic_pointer_cast<AbstractBranchingRule>(rule))
+    if (auto branchingRule = std::dynamic_pointer_cast<solver::AbstractBranchingRule>(rule))
     {
         overviewFile << "rule_" << stateIDs.top() << "_" << branchingRule->Branch()
-                     << " -> state_" << maxStateId<<
-                        " [URL=\"rule_" << stateIDs.top() << "_" << branchingRule->Branch()<<"_a.dot.svg\", target=F];\n";
+                     << " -> state_" << maxStateId
+                     << " [URL=\"rule_" << stateIDs.top() << "_" << branchingRule->Branch() << "_a.dot.svg\", target=F];\n";
         overviewFile << "state_" << stateIDs.top()
                      << " -> rule_" << stateIDs.top() << "_" << branchingRule->Branch()
                      << " [style=invis]";
@@ -127,8 +130,8 @@ void solver::DebugPlugin::onApply(const std::shared_ptr<solver::AbstractRule>& r
     else
     {
         overviewFile << "rule_" << stateIDs.top()
-                     << " -> state_" << maxStateId <<
-                        " [URL=\"rule_" << stateIDs.top() << "_a.dot.svg\", target=F];\n";
+                     << " -> state_" << maxStateId
+                     << " [URL=\"rule_" << stateIDs.top() << "_a.dot.svg\", target=F];\n";
         overviewFile << "state_" << stateIDs.top()
                      << " -> rule_" << stateIDs.top()
                      << " [style=invis]";
@@ -138,34 +141,33 @@ void solver::DebugPlugin::onApply(const std::shared_ptr<solver::AbstractRule>& r
     writeStateNode();
 }
 
-void solver::DebugPlugin::onUnapply(const std::shared_ptr<solver::AbstractRule>& rule)
+void solver::plugin::VisualizationPlugin::onUnapply(const std::shared_ptr<solver::AbstractRule>& rule)
 {
     stateIDs.pop();
-    if (auto branchingRule = std::dynamic_pointer_cast<AbstractBranchingRule>(rule))
+    if (auto branchingRule = std::dynamic_pointer_cast<solver::AbstractBranchingRule>(rule))
     {
         overviewFile << "state_" << stateIDs.top()
                      << " -> rule_" << stateIDs.top() << "_" << branchingRule->Branch()
-                     << " [dir=back, URL=\"rule_" << stateIDs.top() << "_" << branchingRule->Branch()<<"_u.dot.svg\", target=F];\n";
+                     << " [dir=back, URL=\"rule_" << stateIDs.top() << "_" << branchingRule->Branch() << "_u.dot.svg\", target=F];\n";
         dotInstance(dirPath + "/rule_" + std::to_string(stateIDs.top()) +
             "_" + std::to_string(branchingRule->Branch()) + "_u.dot");
     }
     else
     {
-        overviewFile
-                    << "state_" << stateIDs.top()
-                    << "-> rule_" << stateIDs.top()
-                    << " [dir=back, URL=\"rule_" << stateIDs.top() << "_u.dot.svg\", target=F];\n";
+        overviewFile << "state_" << stateIDs.top()
+                     << "-> rule_" << stateIDs.top()
+                     << " [dir=back, URL=\"rule_" << stateIDs.top() << "_u.dot.svg\", target=F];\n";
         dotInstance(dirPath + "/rule_" + std::to_string(stateIDs.top()) + "_u.dot");
     }
 }
 
-void solver::DebugPlugin::onEnd()
+void solver::plugin::VisualizationPlugin::onEnd()
 {
     overviewFile << "}\n";
     overviewFile.close();
 }
 
-void solver::DebugPlugin::onTempUnapply(const std::shared_ptr<solver::AbstractRule>& rule, bool lastRule)
+void solver::plugin::VisualizationPlugin::onReductionUnapply(const std::shared_ptr<solver::AbstractRule>& rule, bool lastRule)
 {
     maxStateId++;
     if (lastRule)
@@ -183,7 +185,7 @@ void solver::DebugPlugin::onTempUnapply(const std::shared_ptr<solver::AbstractRu
     stateIDs.push(maxStateId);
 }
 
-void solver::DebugPlugin::onTempApply(const std::shared_ptr<solver::AbstractRule>& rule)
+void solver::plugin::VisualizationPlugin::onReductionReapply(const std::shared_ptr<solver::AbstractRule>& rule)
 {
     int old = stateIDs.top();
     stateIDs.pop();

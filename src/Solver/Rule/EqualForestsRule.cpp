@@ -65,3 +65,8 @@ std::string solver::EqualForestsRule::name() const
 {
     return "EqualForestsRule";
 }
+
+std::shared_ptr<solver::AbstractRule> solver::EqualForestsRule::clone() const
+{
+    return std::make_shared<EqualForestsRule>(instance, context, toBeRemoved);
+}

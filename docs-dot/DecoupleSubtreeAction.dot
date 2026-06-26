@@ -1,0 +1,107 @@
+digraph structs {
+ splines=false;
+size="12,8";
+nodesep=1;
+ranksep=1;
+edge[arrowhead=none]
+node[forcelabel=true];
+
+
+// before action
+
+b_ptree_root [xlabel="root", shape=circle, label="", fixedsize=true, width=0.15, style=filled, fillcolor=grey]
+b_ptree_label [shape=plaintext, label="Tree"];
+b_stree_label [shape=plaintext, label="Subtree"];
+
+{
+rank=same;
+b_ptree_left [shape=point];
+b_ptree_left [shape=point];
+b_ptree_right [shape=point];
+b_stree_root [xlabel="decouplingPoint", shape=circle, label="", fixedsize=true, width=0.15, style=filled, fillcolor=grey]
+b_ptree_left -> b_stree_root -> b_ptree_right;
+}
+{
+rank=same;
+b_stree_left [shape=point];
+b_stree_middle [shape=point, style=invis];
+b_stree_right [shape=point];
+b_stree_left -> b_stree_middle -> b_stree_right;
+}
+
+b_ptree_root  -> b_ptree_left;
+b_ptree_root  -> b_ptree_label [style=invis];
+b_ptree_label -> b_ptree_left [style=invis];
+b_ptree_label -> b_ptree_right [style=invis];
+b_ptree_root  -> b_ptree_right;
+
+b_ptree_label -> b_stree_root [style=invis];
+b_stree_root  -> b_stree_label [style= invis];
+b_stree_label -> b_stree_left [style=invis];
+b_stree_label -> b_stree_right [style=invis];
+b_stree_root  -> b_stree_left;
+b_stree_root  -> b_stree_right;
+
+// do / undo arrows
+
+{
+        rank=same;
+        a1 [shape=none, style=invis];
+        a3 [shape=none, style=invis];
+        a1 -> a3 [style=invis];
+        a1 -> a3 [arrowhead=normal, label="do action"];
+}
+{
+        rank=same;
+        a2 [shape=none, style=invis];
+        a4 [shape=none, style=invis];
+        a2 -> a4 [style=invis];
+        a2 -> a4 [arrowhead=normal, dir=back, label="undo action"];
+}
+
+a0 [style=invis];
+a0 -> a1 [style=invis];
+a1 -> a2 [style=invis];
+a3 -> a4 [style=invis];
+
+// after action
+
+a_ptree_root [xlabel="root", shape=circle, label="", fixedsize=true, width=0.15, style=filled, fillcolor=grey]
+a_ptree_label [shape=plaintext, label="Tree"];
+a_stree_root [xlabel="[new] subtreeRoot", shape=circle, label="", fixedsize=true, width=0.15, style=filled, fillcolor=grey]
+
+a_stree_vroot [xlabel="[new] subtreeVirtualRoot", shape=circle, label="", fixedsize=true, width=0.15, style=filled, fillcolor=grey]
+a_stree_vsibling [xlabel="[new] subtreeVirtualSibling", shape=circle, label="", fixedsize=true, width=0.15, style=filled, fillcolor=grey]
+
+a_stree_label [shape=plaintext, label="Subtree"];
+
+{
+rank=same;
+a_ptree_left [shape=point];
+a_ptree_middle [xlabel="decouplingPoint", shape=circle, label="", fixedsize=true, width=0.15, style=filled, fillcolor=grey]
+a_ptree_right [shape=point];
+a_ptree_left -> a_ptree_middle -> a_ptree_right;
+}
+{
+rank=same;
+a_stree_left [shape=point];
+a_stree_middle [shape=point, style=invis];
+a_stree_right [shape=point];
+a_stree_left -> a_stree_middle -> a_stree_right;
+}
+
+
+a_ptree_root  -> a_ptree_left;
+a_ptree_root  -> a_ptree_right;
+a_ptree_root  -> a_ptree_label [style=invis];
+a_ptree_label -> a_ptree_left [style=invis];
+a_ptree_label -> a_ptree_right [style=invis];
+
+a_stree_vroot -> a_stree_root;
+a_stree_vroot -> a_stree_vsibling
+a_stree_root  -> a_stree_label [style= invis];
+a_stree_label -> a_stree_left [style=invis];
+a_stree_label -> a_stree_right [style=invis];
+a_stree_root  -> a_stree_left;
+a_stree_root  -> a_stree_right;
+}

@@ -15,8 +15,11 @@ class CollapseSubtreeAction : AbstractAction
     /// \brief forest on which the action will be performed
     std::shared_ptr<graph::Forest> forest;
 
-    /// \brief A Pointer to the node from which the subtree will be collapsed into single leaf
+    /// \brief A Pointer to the node from which the subtree will be collapsed into a single leaf
     graph::Node* node;
+
+    /// \brief The label that remains at the collapsed subtree leaf (i.e., the smallest label of the subtree)
+    unsigned int collapsedLabel;
 
     /// \brief A Pointer to the left child of node
     graph::Node* leftChild;

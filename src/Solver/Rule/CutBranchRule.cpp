@@ -2,6 +2,9 @@
 
 #include "../BranchingSolverConfiguration.hpp"
 
+#include <algorithm>
+#include <ranges>
+
 solver::CutBranchRule::CutBranchRule(const std::shared_ptr<graph::Instance>& instance,
                                      const std::shared_ptr<Context>& context) :
     AbstractRule(instance, context, false)
@@ -45,7 +48,7 @@ solver::CutBranchRule::isApplicable(const std::shared_ptr<graph::Instance>& inst
     {
         for (const auto& f : *instance)
         {
-            if (f->Roots().size() >=  context->bestSolutionSize)
+            if (context->weightFunction(f) >= context->bestSolutionWeight)
             {
                 return std::make_shared<solver::CutBranchRule>(instance, context);
             }
@@ -57,4 +60,9 @@ solver::CutBranchRule::isApplicable(const std::shared_ptr<graph::Instance>& inst
 std::string solver::CutBranchRule::name() const
 {
     return "CutBranchRule";
+}
+
+std::shared_ptr<solver::AbstractRule> solver::CutBranchRule::clone() const
+{
+    return std::make_shared<solver::CutBranchRule>(instance, context);
 }

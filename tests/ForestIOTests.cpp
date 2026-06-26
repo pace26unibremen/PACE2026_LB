@@ -14,7 +14,7 @@ TEST_CASE("Read and Write single Tree", "[Forest, ForestIO]")
         SECTION("Read")
         {
             INFO("compare number of nodes");
-            REQUIRE(t1.Nodes().size() == 3);
+            REQUIRE(t1.Nodes()->size() == 3);
             INFO("Check number of trees");
             REQUIRE(t1.Roots().size() == 1);
             INFO("Check number of terminals");
@@ -49,7 +49,7 @@ TEST_CASE("Read and Write single Tree", "[Forest, ForestIO]")
         SECTION("Read")
         {
             INFO("compare number of nodes");
-            REQUIRE(t2.Nodes().size() == 11);
+            REQUIRE(t2.Nodes()->size() == 11);
             INFO("Check number of trees");
             REQUIRE(t2.Roots().size() == 1);
             INFO("Check number of terminals");
@@ -84,7 +84,7 @@ TEST_CASE("Read and Write single Tree", "[Forest, ForestIO]")
         SECTION("Read")
         {
             INFO("compare number of nodes");
-            REQUIRE(t3.Nodes().size() == 11);
+            REQUIRE(t3.Nodes()->size() == 11);
             INFO("Check number of trees");
             REQUIRE(t3.Roots().size() == 1);
             INFO("Check number of terminals");
@@ -122,7 +122,7 @@ TEST_CASE("Read and Write Forest", "[Forest, ForestIO]")
         SECTION("Read")
         {
             INFO("compare number of nodes");
-            REQUIRE(f1.Nodes().size() == 2);
+            REQUIRE(f1.Nodes()->size() == 2);
             INFO("Check number of trees");
             REQUIRE(f1.Roots().size() == 2);
             INFO("Check number of terminals");
@@ -161,7 +161,7 @@ TEST_CASE("Read and Write Forest", "[Forest, ForestIO]")
         SECTION("Read")
         {
             INFO("compare number of nodes");
-            REQUIRE(f2.Nodes().size() == 8);
+            REQUIRE(f2.Nodes()->size() == 8);
             INFO("Check number of trees");
             REQUIRE(f2.Roots().size() == 4);
             INFO("Check number of terminals");

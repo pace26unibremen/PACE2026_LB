@@ -37,8 +37,6 @@ Forest::Forest(std::shared_ptr<std::vector<Node>> nodes,
         labelToTerminal(std::move(labelToTerminal)),
         roots(std::move(roots))
 {
-    sortChildrenAndCollectTerminals();
-
     #ifdef DEBUG_IMAGE_VIEW_GRAPH
     renderImage();
     #endif
@@ -118,14 +116,14 @@ void Forest::dotMaxSAT(const string& path,
 // ---- access to member fields -------------------------------- //
 // ------------------------------------------------------------- //
 
-vector<Node>& Forest::Nodes()
+std::shared_ptr<std::vector<Node>>& Forest::Nodes()
 {
-    return *this->nodes;
+    return this->nodes;
 }
 
-const vector<Node>& Forest::Nodes() const
+const std::shared_ptr<std::vector<Node>>& Forest::Nodes() const
 {
-    return *this->nodes;
+    return this->nodes;
 }
 
 std::unordered_map<Node*, unsigned int>& Forest::TerminalToLabel()
@@ -501,7 +499,7 @@ void Forest::renderImage()
 void Forest::sortChildrenAndCollectTerminals()
 {
     // the number of elements in the `subtreeTerminals` vector of each node
-    const unsigned int numberOfEntries = (terminalToLabel->size() + 63) / 64;
+    const unsigned int numberOfEntries = (std::ranges::max(*labelToTerminal | std::views::keys) + 63) / 64;
 
     std::function<unsigned int(Node*)> orderSubtree = [&, numberOfEntries](Node* subtreePtr) -> unsigned int {
         subtreePtr->subtreeTerminals.resize(numberOfEntries,0);

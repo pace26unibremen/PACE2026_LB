@@ -237,10 +237,10 @@ TEST_CASE("Delete Edge Action - sibling & root order", "[Forest, DeleteEdgeActio
         REQUIRE(f1.Roots()[2] == root2);
         REQUIRE(f1.Roots()[3] == root1);
 
-        auto r = f1.Nodes()[3];
+        auto r = f1.Nodes()->at(3);
         REQUIRE(r.leftChild == node11);
         REQUIRE(r.rightChild == node4);
-        auto p = f1.Nodes()[4];
+        auto p = f1.Nodes()->at(4);
         REQUIRE(p.leftChild == node8);
         REQUIRE(p.rightChild == node7);
 
@@ -276,7 +276,7 @@ TEST_CASE("Delete Edge Action - sibling & root order", "[Forest, DeleteEdgeActio
         REQUIRE(f1.Roots()[2] == root2);
         REQUIRE(f1.Roots()[3] == node8);
 
-        auto r = f1.Nodes()[3];
+        auto r = f1.Nodes()->at(3);
         REQUIRE(r.leftChild == node5);
         REQUIRE(r.rightChild == node11);
 

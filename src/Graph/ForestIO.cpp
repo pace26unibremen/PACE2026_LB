@@ -48,7 +48,7 @@ Forest ForestIO::ReadNewick(std::istream& stream, int numberOfTerminals, int num
         Node* currentRoot = nullptr;
 
         // Helper function to create a new node and link it to the current parent and sibling.
-        std::function addNode = [&]() -> Node* {
+        std::function<graph::Node*(void)> addNode = [&](){
             // Create new internal node
             nodes->emplace_back();
             Node* terminal = &nodes->back();
@@ -202,7 +202,9 @@ Forest ForestIO::ReadNewick(std::istream& stream, int numberOfTerminals, int num
             sibling = nullptr;
         };
     }
-    return {nodes, terminalToLabel, labelToTerminal, roots};
+    auto f =  Forest(nodes, terminalToLabel, labelToTerminal, roots);
+    f.sortChildrenAndCollectTerminals();
+    return f;
 }
 
 void ForestIO::WriteNewick(const Forest& forest, std::ostream& stream)
@@ -248,7 +250,8 @@ void ForestIO::WriteNewick(const Forest& forest, std::ostream& stream)
 void ForestIO::WriteDot(const Forest& forest, ostream& stream)
 {
     stream << "digraph Tree {\n"
-           << "splines = false\n\n";
+           << "splines = false;\n"
+           << "bgcolor = transparent;\n\n";
     std::string subgraphParams =
         "style=invis;\n"
         "node [\n"
@@ -267,13 +270,17 @@ void ForestIO::WriteDot(const Forest& forest, ostream& stream)
     stream << "}" << endl;
 }
 
-void ForestIO::WriteDotSubgraph(const Forest& forest, ostream& stream, std::string subgraphParams)
+void ForestIO::WriteDotSubgraph(const Forest& forest, ostream& stream, std::string subgraphParams, bool verbose)
 {
-
     stream << "subgraph forest_" << &forest << " {\n"
            << "cluster=true;\n"
            << subgraphParams << "\n";
     stream << "inv_" << &forest << " [style = invis];\n\n";
+
+    if (verbose)
+    {
+        stream << "fAddr [shape = plaintext,label = " << "\"Forest Address " << &forest << "\", style=none];\n\n";
+    }
 
     std::stack<Node*> siblings;
     for (auto t : forest.Roots())
@@ -281,10 +288,26 @@ void ForestIO::WriteDotSubgraph(const Forest& forest, ostream& stream, std::stri
         auto current = t;
         while (current)
         {
-            if (forest.TerminalToLabel().contains(current))
+            if (verbose)
             {
-                stream << "n" << current << " [label = \"" << forest.TerminalToLabel().at(current) << "\\n\\n\\n \"];\n";
-                stream << "n" << current << " -> inv_" << &forest << " [style = invis];\n";
+                if (forest.TerminalToLabel().contains(current))
+                {
+                    stream << "n" << current << " [label = \"" << forest.TerminalToLabel().at(current) << "\\n\\n\\n \","
+                           <<" xlabel= \"" << current << "\"];\n";
+                    stream << "n" << current << " -> inv_" << &forest << " [style = invis];\n";
+                }
+                else
+                {
+                    stream << "n" << current << " [xlabel= \"" << current << "\"];\n";
+                }
+            }
+            else
+            {
+                if (forest.TerminalToLabel().contains(current))
+                {
+                    stream << "n" << current << " [label = \"" << forest.TerminalToLabel().at(current) << "\\n\\n\\n \"];\n";
+                    stream << "n" << current << " -> inv_" << &forest << " [style = invis];\n";
+                }
             }
 
             if (current->rightChild)

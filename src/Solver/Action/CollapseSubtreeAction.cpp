@@ -38,7 +38,8 @@ void solver::CollapseSubtreeAction::doAction()
         }
         k++;
     }
-    forest->TerminalToLabel().emplace(node, smallestLabel);
+    collapsedLabel = smallestLabel;
+    forest->TerminalToLabel().emplace(node, collapsedLabel);
 
     #ifdef DEBUG_IMAGE_VIEW_GRAPH
     forest->renderImage();
@@ -47,8 +48,13 @@ void solver::CollapseSubtreeAction::doAction()
 
 void solver::CollapseSubtreeAction::undoAction()
 {
+    // the node may have changed (e.g., due to cluster reduction)
+    node = forest->LabelToTerminal()[collapsedLabel];
+
     node->leftChild = leftChild;
     node->rightChild = rightChild;
+    leftChild->parent = node;
+    rightChild->parent = node;
 
     for(const auto& [label, oldNode] : collapsedLabelToTerminals)
     {

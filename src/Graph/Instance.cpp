@@ -96,6 +96,7 @@ void graph::WriteInstance(const std::shared_ptr<Instance>& instance, const std::
 void graph::DotInstance(const std::shared_ptr<Instance>& instance, std::ostream& os)
 {
     os << "digraph Instance {\n"
+       << "bgcolor = transparent;\n"
        << "splines = false\n\n";
 
     std::string subgraphParams =

@@ -27,7 +27,7 @@ class SingleVertexTreePropagationRule : public AbstractRule
 
     /// \brief Stack of action that modify the instance,
     /// filled in the apply method and unfilled in the unapply method
-    std::stack<DeleteEdgeAction> changes = std::stack<DeleteEdgeAction>();;
+    std::stack<DeleteEdgeAction> changes = std::stack<DeleteEdgeAction>();
 
 public:
     /// \param instance the problem instance
@@ -55,6 +55,9 @@ public:
 
     [[nodiscard]]
     std::string name() const override;
+
+    [[nodiscard]]
+    std::shared_ptr<AbstractRule> clone() const override;
 };
 
 }  //namespace solver

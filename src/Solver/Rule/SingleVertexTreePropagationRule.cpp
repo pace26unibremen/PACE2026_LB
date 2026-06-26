@@ -16,14 +16,18 @@ solver::RuleReturnCode solver::SingleVertexTreePropagationRule::apply()
     }
     isApplied = true;
 
-    for (const auto& f_ptr : *instance)
+    for (const auto& fi : *instance)
     {
         for (unsigned int label : labelsToBeReduced)
         {
-            graph::Node* terminal = f_ptr->LabelToTerminal()[label];
+            graph::Node* terminal = fi->LabelToTerminal()[label];
             if (terminal->parent != nullptr)
             {
-                changes.emplace(terminal, f_ptr);
+                if (context->protectedEdges.contains(terminal))
+                {
+                    return RuleReturnCode::CutBranch;
+                }
+                changes.emplace(terminal, fi);
                 changes.top().doAction();
             }
         }
@@ -53,7 +57,7 @@ solver::SingleVertexTreePropagationRule::isApplicable(const std::shared_ptr<grap
 {
     auto labelsToBeReduced = std::unordered_set<unsigned int>();
 
-    for (unsigned int label = 1; label < instance->at(0)->LabelToTerminal().size() + 1; label++)
+    for (const auto& [_, label] : instance->at(0)->TerminalToLabel())
     {
         bool anySingleVertexTree = false;
         bool anyNotSingleVertexTree = false;
@@ -86,4 +90,9 @@ solver::SingleVertexTreePropagationRule::isApplicable(const std::shared_ptr<grap
 std::string solver::SingleVertexTreePropagationRule::name() const
 {
     return "SingleVertexTreePropagationRule";
+}
+
+std::shared_ptr<solver::AbstractRule> solver::SingleVertexTreePropagationRule::clone() const
+{
+    return std::make_shared<SingleVertexTreePropagationRule>(instance, context, labelsToBeReduced);
 }

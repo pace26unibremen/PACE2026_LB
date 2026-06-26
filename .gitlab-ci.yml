@@ -14,11 +14,23 @@ workflow:
       when: never
     - when: always
 
+# FORCE_RELEASE/MANUAL_TAG have no default elsewhere, so without this they're undefined on
+# every pipeline that doesn't set them. Comparing an undefined variable with != "" is not
+# reliable in GitLab's rules engine, so declare them here to make sure they're always actually
+# defined as empty strings unless a manual run explicitly overrides them.
+variables:
+  FORCE_RELEASE: ""
+  MANUAL_TAG: ""
+
 # Shared anchor for reuse
 .release-rules: &release-rules
   rules:
-    # Only run on master branch on merge commits
-    - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /See merge request/'
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($FORCE_RELEASE == "true" || $MANUAL_TAG != "")'
+      when: on_success
+    # Auto-release only applies to the actual merge pipeline (non-web source); manually
+    # triggered web pipelines on master (e.g. to run a specific benchmark) must not also
+    # trigger a release unless explicitly requested via FORCE_RELEASE/MANUAL_TAG above.
+    - if: '$CI_PIPELINE_SOURCE != "web" && $CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /See merge request/'
       when: on_success
     - when: never
 
@@ -73,6 +85,8 @@ build-solver:
       - build/tests/ForestSubforestTests
       - build/tests/DeleteEdgeActionTests
       - build/tests/BranchingSolverSimpleTests
+      - build/tests/PluginTests
+      - build/tests/MetricsPluginTests
       - build/tests/ILP/TreeUtilsTests
       - build/tests/ILP/ILPFormulationTests
       - build/tests/ILP/ILPSolverSimpleTests
@@ -137,6 +151,15 @@ test-branching-solver:
   script:
     - ./BranchingSolverSimpleTests --reporter junit -o BranchingSolverSimpleTests-results.xml
 
+test-plugins:
+  extends: .test-base
+  before_script:
+    - cd build/tests/
+    - chmod +x PluginTests
+  script:
+    - ./PluginTests --reporter junit -o PluginTests-results.xml
+    - ./MetricsPluginTests --reporter junit -o MetricsPluginTests-results.xml
+
 test-ilp-solver-evalmaxsat:
   extends: .test-base
   before_script:
@@ -195,6 +218,7 @@ pages:
     - test-actions
     - test-graph-representation
     - test-branching-solver
+    - test-plugins
     - test-ilp-tree-utils
     - test-ilp-formulation
   script:
@@ -223,113 +247,135 @@ prepare-release:
   <<: *release-rules
   before_script:
     - apt-get update && apt-get install -y curl jq git
+    - git fetch --tags  # Ensure we have all tags to determine the latest version
   script:
     - |
-      # Get latest merged MR IID targeting master
-      MR_IID=$(
-      curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/commits/$CI_COMMIT_SHA/merge_requests" \
-      | jq -r '.[0].iid // empty'
-      )
-      if [ -z "$MR_IID" ] || [ "$MR_IID" = "null" ]; then
-        echo "Error: No recent merged MR to master found."
-        exit 1
-      fi
-      echo "MR IID: $MR_IID"
-    - |
-      # Get MR labels and decide bump type
-      MR_DATA=$(
-        curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$MR_IID"
-      )
-      echo "All labels:"
-      echo "$MR_DATA" | jq -r '.labels[]'
-      LABELS=$(echo "$MR_DATA" | jq -r '[.labels[] | select(test("^[Tt]ype::"))] | join(", ")')
-      if [[ "$LABELS" =~ [Tt]ype::[Ff]eature ]]; then
-        BUMP="minor"
-      elif [[ "$LABELS" =~ [Tt]ype::([bB]ug|[Mm]aintenance|[Mm]eta[[:space:]]*[Ff]eature) ]]; then
-        BUMP="patch"
+      # --- Manual TAG override: skip all version/MR logic ---
+      if [ -n "$MANUAL_TAG" ]; then
+        echo "Manual tag override: $MANUAL_TAG"
+        TAG="$MANUAL_TAG"
+        TITLE="Manual release $TAG"
+        DESC_FULL="Manually triggered release."
+        MR_IID=""
+        ISSUE_IID=""
+        LOOKUP_SHA="$CI_COMMIT_SHA"
       else
-        echo "Error: No valid type:: label: $LABELS"
-        exit 1
-      fi
-      echo "Labels: $LABELS → Bump: $BUMP"
-    - |
-      # Current version from latest vX.Y.Z tag
-      LATEST_TAG=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -n1)
-      if [ -z "$LATEST_TAG" ]; then
-        CURRENT_VERSION="0.0.0"
-      else
-        CURRENT_VERSION="${LATEST_TAG#v}"
-      fi
-      if ! [[ $CURRENT_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-        echo "Error: Invalid semver $LATEST_TAG (manual major? Use vMAJOR.0.0)"
-        exit 1
-      fi
-      MAJOR="${BASH_REMATCH[1]}"
-      MINOR="${BASH_REMATCH[2]}"
-      PATCH="${BASH_REMATCH[3]}"
-      echo "Current: v$CURRENT_VERSION"
-    - |
-      # Compute new version
-      if [ "$BUMP" = "minor" ]; then
-        NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
-      else
-        NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
-      fi
-      TAG="v$NEW_VERSION"
-      echo "New version (tag): $TAG"
-    - |
-      # Get issue from MR (parse "Closes #123" in description)
-      ISSUE_IID=$(echo "$MR_DATA" | grep -o 'Closes #[0-9]\+' | head -1 | sed 's/Closes #//')
-      if [ -n "$ISSUE_IID" ]; then
-        ISSUE_DATA=$(
+        # --- Determine which commit to look up the MR for ---
+        LOOKUP_SHA="${RELEASE_COMMIT_SHA:-$CI_COMMIT_SHA}"
+        echo "Looking up MR for commit: $LOOKUP_SHA"
+
+        MR_IID=$(
           curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" \
-            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/issues/$ISSUE_IID"
+            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/commits/$LOOKUP_SHA/merge_requests" \
+          | jq -r '.[0].iid // empty'
         )
-        ISSUE_TITLE=$(echo "$ISSUE_DATA" | jq -r '.title')
-        DESC=$(
-          echo "$ISSUE_DATA" \
-          | jq -r '.description // empty' \
-          | head -n15 \
-          | sed 's/^/  /'
-        )
-        DESC_FULL="${DESC}
-      
-        ... (see more at $CI_PROJECT_URL/-/issues/$ISSUE_IID)"
-        TITLE="$ISSUE_TITLE"
-      else
-        TITLE=$(echo "$MR_DATA" | jq -r '.title')
-        DESC_FULL="No linked issue. See MR $CI_PROJECT_URL/-/merge_requests/$MR_IID"
+        if [ -z "$MR_IID" ] || [ "$MR_IID" = "null" ]; then
+          echo "Error: No merged MR found for commit $LOOKUP_SHA"
+          exit 1
+        fi
+        echo "MR IID: $MR_IID"
       fi
-      echo "Title: $TITLE"
-      echo "Desc preview:"
-      echo "$DESC_FULL"
     - |
-      # Compose release description
-      RELEASE_DESC="**MR!$MR_IID: $TITLE**  $DESC_FULL"
-      echo "Release description (single line with \\n escapes):"
-      echo "$RELEASE_DESC"
+      if [ -z "$MANUAL_TAG" ]; then
+        # Get MR labels and decide bump type
+        MR_DATA=$(
+          curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$MR_IID"
+        )
+        echo "All labels:"
+        echo "$MR_DATA" | jq -r '.labels[]'
+        LABELS=$(echo "$MR_DATA" | jq -r '[.labels[] | select(test("^[Tt]ype::"))] | join(", ")')
+        if [[ "$LABELS" =~ [Tt]ype::[Ff]eature ]]; then
+          BUMP="minor"
+        elif [[ "$LABELS" =~ [Tt]ype::([bB]ug|[Mm]aintenance|[Mm]eta[[:space:]]*[Ff]eature) ]]; then
+          BUMP="patch"
+        else
+          echo "Error: No valid type:: label: $LABELS"
+          exit 1
+        fi
+        echo "Labels: $LABELS → Bump: $BUMP"
+      fi
     - |
-      # Write dotenv file for next job (used by release keyword)
+      if [ -z "$MANUAL_TAG" ]; then
+        # Current version from latest vX.Y.Z tag
+        LATEST_TAG=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -n1)
+        if [ -z "$LATEST_TAG" ]; then
+          CURRENT_VERSION="0.0.0"
+        else
+          CURRENT_VERSION="${LATEST_TAG#v}"
+        fi
+        if ! [[ $CURRENT_VERSION =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+          echo "Error: Invalid semver $LATEST_TAG (manual major? Use vMAJOR.0.0)"
+          exit 1
+        fi
+        MAJOR="${BASH_REMATCH[1]}"
+        MINOR="${BASH_REMATCH[2]}"
+        PATCH="${BASH_REMATCH[3]}"
+        echo "Current: v$CURRENT_VERSION"
+
+        # Compute new version
+        if [ "$BUMP" = "minor" ]; then
+          NEW_VERSION="$MAJOR.$((MINOR + 1)).0"
+        else
+          NEW_VERSION="$MAJOR.$MINOR.$((PATCH + 1))"
+        fi
+        TAG="v$NEW_VERSION"
+        echo "New version (tag): $TAG"
+      fi
+    - |
+      if [ -z "$MANUAL_TAG" ]; then
+        # Get issue from MR (parse "Closes #123" in description)
+        ISSUE_IID=$(echo "$MR_DATA" | grep -o 'Closes #[0-9]\+' | head -1 | sed 's/Closes #//')
+        if [ -n "$ISSUE_IID" ]; then
+          ISSUE_DATA=$(
+            curl --fail --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+              "$CI_API_V4_URL/projects/$CI_PROJECT_ID/issues/$ISSUE_IID"
+          )
+          ISSUE_TITLE=$(echo "$ISSUE_DATA" | jq -r '.title')
+          DESC=$(
+            echo "$ISSUE_DATA" \
+            | jq -r '.description // empty' \
+            | head -n15 \
+            | sed 's/^/  /'
+          )
+          DESC_FULL="${DESC}
+
+        ... (see more at $CI_PROJECT_URL/-/issues/$ISSUE_IID)"
+          TITLE="$ISSUE_TITLE"
+        else
+          TITLE=$(echo "$MR_DATA" | jq -r '.title')
+          DESC_FULL="No linked issue. See MR $CI_PROJECT_URL/-/merge_requests/$MR_IID"
+        fi
+        echo "Title: $TITLE"
+        echo "Desc preview:"
+        echo "$DESC_FULL"
+
+        # Compose release description
+        RELEASE_DESC="**MR!$MR_IID: $TITLE**  $DESC_FULL"
+        echo "Release description (single line with \\n escapes):"
+        echo "$RELEASE_DESC"
+      fi
+    - |
+      # Write dotenv — TAG and the exact commit the release points to
       {
         printf 'TAG=%s\n' "$TAG"
+        printf 'RELEASE_COMMIT_SHA=%s\n' "$LOOKUP_SHA"
       } > release.env
-      echo "Wrote release.env with TAG"
+      echo "Wrote release.env: TAG=$TAG RELEASE_COMMIT_SHA=$LOOKUP_SHA"
     - |
       # Write full description as Markdown artifact
       cat > release-description.md << EOF
-      
+
       This release was automatically generated from
-      
-      # MR!$MR_IID: $TITLE
+
+      # ${MR_IID:+MR!$MR_IID: }$TITLE
 
       $DESC_FULL
 
       ---
-      
-      [Full MR]($CI_PROJECT_URL/-/merge_requests/$MR_IID)  
-      [Full issue #$ISSUE_IID (if linked)]($CI_PROJECT_URL/-/issues/$ISSUE_IID)
+
+      ${MR_IID:+[Full MR]($CI_PROJECT_URL/-/merge_requests/$MR_IID)  }
+      ${ISSUE_IID:+[Full issue #$ISSUE_IID (if linked)]($CI_PROJECT_URL/-/issues/$ISSUE_IID)}
       EOF
   artifacts:
     reports:
@@ -341,33 +387,48 @@ prepare-release:
 # Actual release job using the GitLab release keyword + official image
 release-job:
   stage: release
-  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  image: ubuntu:24.04
   needs:
     - job: prepare-release
       artifacts: true
   <<: *release-rules
+  before_script:
+    - apt-get update && apt-get install -y curl jq git
   script:
-    - echo "Creating GitLab release for tag $TAG"
-  release:
-    tag_name: '$TAG'
-    ref: '$CI_COMMIT_SHA'
-    tag_message: 'Release $TAG'
-    name: 'Release $TAG'
-    description: release-description.md  # Points to the file
-    assets:
-      links:
-        - name: 'solver – branching (Linux x86_64 static)'
-          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/startSolver?job=build-solver'
-          link_type: 'package'
-        - name: 'solver – EvalMaxSAT ILP (Linux x86_64 static)'
-          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/solver_evalmaxsat?job=build-solver'
-          link_type: 'package'
-        - name: 'solver – UWrMaxSat ILP (Linux x86_64 static)'
-          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build/src/solver_uwrmaxsat?job=build-solver'
-          link_type: 'package'
-        - name: 'solver (Windows x86_64 static)'
-          url: '$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_SHA/raw/build-win/src/startSolver.exe?job=build-solver-windows'
-          link_type: 'package'
+    - echo "TAG=$TAG RELEASE_COMMIT_SHA=$RELEASE_COMMIT_SHA"
+    - |
+      # Configure git to push via job token
+      git remote set-url origin "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      git config user.email "ci@gitlab"
+      git config user.name "GitLab CI"
+    - |
+      # Tag the MR merge commit, not master HEAD
+      git tag -a "$TAG" "$RELEASE_COMMIT_SHA" -m "Release $TAG"
+      git push origin "$TAG"
+    - |
+      # Create the release with asset links referencing the tag as ref
+      curl --fail \
+           --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+           --header "Content-Type: application/json" \
+           --data "$(jq -n \
+             --arg tag "$TAG" \
+             --arg name "Release $TAG" \
+             --rawfile desc release-description.md \
+             --arg linux_url "$CI_PROJECT_URL/-/jobs/artifacts/$TAG/raw/build/src/startSolver?job=build-solver" \
+             --arg win_url "$CI_PROJECT_URL/-/jobs/artifacts/$TAG/raw/build-win/src/startSolver.exe?job=build-solver-windows" \
+             '{
+               tag_name: $tag,
+               name: $name,
+               description: $desc,
+               assets: {
+                 links: [
+                   {name: "solver (Linux x86_64 static binary)", url: $linux_url, link_type: "package"},
+                   {name: "solver (Windows x86_64 static binary)", url: $win_url, link_type: "package"}
+                 ]
+               }
+             }')" \
+           "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases"
+    - echo "Release $TAG created successfully."
 
 # Build stride from source
 build_stride:
@@ -391,13 +452,14 @@ build_stride:
     - build-solver
     - build_stride
   variables:
-    RUN_BENCHMARK: "none"   # none, quick, full, exact, all
+    RUN_BENCHMARK: "none"   # none, quick, full, exact, heuristic, lower-bound, all
     RUN_SUFFIX: "" # Can be used on manual runs to change the run name
     INSTANCES_LST: "all.lst"  # Or full
     SLURM_SCRIPT: "quick_run.slurm"
     STRIDE_TIMEOUT: 1800
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}"
+    PACE_TRACK: "pipeline"
   before_script:
     - echo "Setting up SSH for HPC access..."
     - apt-get update && apt-get install -y openssh-client rsync curl jq
@@ -445,7 +507,8 @@ build_stride:
         STRIDE_DOWNLOADS_PATH="../../shared/.stride-downloads"
         STRIDE_INSTANCE_ORDER="nodes-trees-asc"
         STRIDE_RUN_NAME="$STRIDE_RUN_NAME"
-        STRIDE_OPTIMAL="$STRIDE_OPTIMAL"
+        STRIDE_OPTIMAL=true
+        PACE_TRACK="$PACE_TRACK"
       EOF
     - cp pace26stride/target/x86_64-unknown-linux-musl/smaller-release/stride hpc_transfer/
     - cp build/src/"$STRIDE_SOLVER" hpc_transfer/startSolver
@@ -536,6 +599,9 @@ run_quick_benchmark:
     # If manually triggered from the web UI and the variable is set to quick or all, run the quick benchmark
     - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "quick" || $RUN_BENCHMARK == "all")'
       when: on_success
+    # Skip if this is a release pipeline (merge into master); full/exact benchmarks cover it
+    - if: '$CI_COMMIT_BRANCH == "master" && $CI_COMMIT_MESSAGE =~ /Merge request|See merge request/'
+      when: never
     # Run on all other pipelines (branches, MRs, direct master pushes)
     - if: '$CI_PIPELINE_SOURCE != "web"'
       when: on_success
@@ -550,8 +616,22 @@ run_full_benchmark:
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_full"
   extends: .run_stride_benchmark_template
   rules:
-    # If manually triggered from the web UI and the variable is set to full or all, run the quick benchmark
+    # If manually triggered from the web UI and the variable is set to full or all, run the full benchmark
     - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "full" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    - when: never
+
+run_3h_benchmark:
+  variables:
+    INSTANCES_LST: "all.lst"
+    SLURM_SCRIPT: "3h_run.slurm"
+    STRIDE_TIMEOUT: 900
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_3h"
+  extends: .run_stride_benchmark_template
+  rules:
+    # If manually triggered from the web UI and the variable is set to 3h or all, run the 3h benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "3h" || $RUN_BENCHMARK == "all")'
       when: on_success
     - !reference [ .release-rules, rules ]
     - when: never
@@ -563,9 +643,10 @@ run_exact-track_benchmark:
     STRIDE_TIMEOUT: 1800
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_exact"
+    PACE_TRACK: "pipeline" # Use the "pipeline" track for now, as this includes all plugin metrics
   extends: .run_stride_benchmark_template
   rules:
-    # If manually triggered from the web UI and the variable is set to exact or all, run the quick benchmark
+    # If manually triggered from the web UI and the variable is set to exact or all, run the exact benchmark
     - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "exact" || $RUN_BENCHMARK == "all")'
       when: on_success
     - !reference [ .release-rules, rules ]
@@ -592,4 +673,37 @@ run_ILP_benchmark:
     # Run on all other pipelines (branches, MRs, direct master pushes)
     - if: '$CI_PIPELINE_SOURCE != "web"'
       when: on_success
+    - when: never
+
+
+run_heuristic-track_benchmark:
+  variables:
+    INSTANCES_LST: "pace26_heuristic_pub_v2.lst"
+    SLURM_SCRIPT: "release_run.slurm"
+    STRIDE_TIMEOUT: 300
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_heuristic"
+    PACE_TRACK: "pipeline" # Use the "pipeline" track for now, as this includes all plugin metrics
+  extends: .run_stride_benchmark_template
+  rules:
+    # If manually triggered from the web UI and the variable is set to heuristic or all, run the heuristic benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "heuristic" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    - !reference [ .release-rules, rules ]
+    - when: never
+
+run_lower-bound-track_benchmark:
+  variables:
+    INSTANCES_LST: "pace26_lower_pub_v3.lst"
+    SLURM_SCRIPT: "release_run.slurm"
+    STRIDE_TIMEOUT: 600
+    STRIDE_GRACE: 10
+    STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_lower-bound"
+    PACE_TRACK: "pipeline" # Use the "pipeline" track for now, as this includes all plugin metrics
+  extends: .run_stride_benchmark_template
+  rules:
+    # If manually triggered from the web UI and the variable is set to lower-bound or all, run the lower-bound benchmark
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "lower-bound" || $RUN_BENCHMARK == "all")'
+      when: on_success
+    - !reference [ .release-rules, rules ]
     - when: never

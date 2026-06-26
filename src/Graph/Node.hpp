@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <unordered_set>
 
 namespace graph
 {
@@ -46,6 +47,12 @@ struct Node
     [[nodiscard]]
     bool hasSameTerminals(const Node* other) const;
 
+    /// Checks if a node has a terminal label in its subtree.
+    /// \param label
+    /// \return true if the subtreeTerminals list of this node contains the label
+    [[nodiscard]]
+    bool hasTerminal(unsigned int label) const;
+
     /// Checks if the terminals in the subtree of a node is a \b subset of
     /// the terminals of another node.
     /// \param other
@@ -63,6 +70,15 @@ struct Node
     /// \returns the smallest label
     [[nodiscard, maybe_unused]]
     unsigned int smallestTerminal() const;
+
+    /// \bried checks whether the node is a true terminal (and not a collapsed node that represents a whole subtree)
+    [[nodiscard]]
+    bool isTrueTerminal() const;
+
+    /// \brief Calculates (!) all labels of the subtree as an unordered set.
+    /// \returns the set of all subtree labels
+    [[nodiscard]]
+    std::unordered_set<unsigned int> SubtreeLabels() const;
 
 };
 

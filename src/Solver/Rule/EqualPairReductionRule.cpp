@@ -1,8 +1,8 @@
-#include "PairEqualRule.hpp"
+#include "EqualPairReductionRule.hpp"
 
 #include <cassert>
 
-solver::PairEqualRule::PairEqualRule(const std::shared_ptr<graph::Instance>& instance,
+solver::EqualPairReductionRule::EqualPairReductionRule(const std::shared_ptr<graph::Instance>& instance,
                                      const std::shared_ptr<Context>& context,
                                      const std::unordered_map<std::shared_ptr<graph::Forest>,
                                      graph::Node*>& forestToSubtree) :
@@ -13,11 +13,11 @@ solver::PairEqualRule::PairEqualRule(const std::shared_ptr<graph::Instance>& ins
 }
 
 
-solver::RuleReturnCode solver::PairEqualRule::apply()
+solver::RuleReturnCode solver::EqualPairReductionRule::apply()
 {
     if (this->isApplied)
     {
-        throw std::invalid_argument("PairEqualRule : apply : rule is already applied");
+        throw std::invalid_argument("EqualPairReductionRule : apply : rule is already applied");
     }
     isApplied = true;
 
@@ -30,11 +30,11 @@ solver::RuleReturnCode solver::PairEqualRule::apply()
     return RuleReturnCode::Continue;
 }
 
-void solver::PairEqualRule::unapply()
+void solver::EqualPairReductionRule::unapply()
 {
     if (not this->isApplied)
     {
-        throw std::invalid_argument("PairEqualRule : unapply : rule is not applied");
+        throw std::invalid_argument("EqualPairReductionRule : unapply : rule is not applied");
     }
     isApplied = false;
 
@@ -47,7 +47,7 @@ void solver::PairEqualRule::unapply()
 
 
 std::shared_ptr<solver::AbstractRule>
-solver::PairEqualRule::isApplicable(const std::shared_ptr<graph::Instance>& instance,
+solver::EqualPairReductionRule::isApplicable(const std::shared_ptr<graph::Instance>& instance,
                                     const std::shared_ptr<Context>& context)
 {
     auto forestToSubtree = std::unordered_map<std::shared_ptr<graph::Forest>, graph::Node*>();
@@ -86,10 +86,15 @@ solver::PairEqualRule::isApplicable(const std::shared_ptr<graph::Instance>& inst
         forestToSubtree.emplace(fi, t1->parent);
     }
 
-    return std::make_shared<PairEqualRule>(instance, context, forestToSubtree);
+    return std::make_shared<EqualPairReductionRule>(instance, context, forestToSubtree);
 }
 
-std::string solver::PairEqualRule::name() const
+std::string solver::EqualPairReductionRule::name() const
 {
-    return "PairEqualRule";
+    return "EqualPairReductionRule";
+}
+
+std::shared_ptr<solver::AbstractRule> solver::EqualPairReductionRule::clone() const
+{
+    return std::make_shared<EqualPairReductionRule>(instance, context, forestToSubtree);
 }

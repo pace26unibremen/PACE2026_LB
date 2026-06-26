@@ -80,10 +80,28 @@ while true; do
         TOTAL=$(wc -l < "$INSTANCES_FILE" 2>/dev/null | tr -d ' \n' | head -c 10)
         TOTAL=${TOTAL:-0}
 
-        # Parse summary.json for progress statistics
-        TIMEOUTS=$(grep -c '"Timeout"' "$SUMMARY_FILE" 2>/dev/null || true)
-        ERRORS=$(grep -c '"SolverError"' "$SUMMARY_FILE" 2>/dev/null || true)
-        SOLVED=$(grep -c '"Valid"' "$SUMMARY_FILE" 2>/dev/null || true)
+        # Parse summary.json for progress statistics.
+        # Our solver now reacts to SIGTERM by emitting the best solution found so far, so a run
+        # that was cut off by stride's time limit still reports "s_result":"Valid" instead of
+        # "Timeout". Those runs carry a "timeout":1 flag plus "s_heuristic_score" (1.0 = the
+        # solution was actually optimal despite being cut off; <1.0 = suboptimal). We still
+        # count anything that hit the time limit as a timeout, split into optimal/suboptimal.
+        HARD_TIMEOUTS=$(grep -c '"s_result":"Timeout"' "$SUMMARY_FILE" 2>/dev/null || true)
+        ERRORS=$(grep -c '"s_result":"SolverError"' "$SUMMARY_FILE" 2>/dev/null || true)
+        VALID_LINES=$(grep '"s_result":"Valid"' "$SUMMARY_FILE" 2>/dev/null || true)
+        SOLVED=$(grep -c '"timeout":0' <<< "$VALID_LINES" 2>/dev/null || true)
+        SIGTERM_LINES=$(grep '"timeout":1' <<< "$VALID_LINES" 2>/dev/null || true)
+        # Note: grep -v on an empty here-string still counts as 1 (empty) line, so guard
+        # explicitly rather than deriving SIGTERM_SUBOPT via `grep -vc`.
+        if [ -z "$SIGTERM_LINES" ]; then
+          SIGTERM_TOTAL=0
+          SIGTERM_OPT=0
+        else
+          SIGTERM_TOTAL=$(wc -l <<< "$SIGTERM_LINES")
+          SIGTERM_OPT=$(grep -c '"s_heuristic_score":1.0' <<< "$SIGTERM_LINES" 2>/dev/null || true)
+        fi
+        SIGTERM_SUBOPT=$((SIGTERM_TOTAL - SIGTERM_OPT))
+        TIMEOUTS=$((HARD_TIMEOUTS + SIGTERM_TOTAL))
         FINISHED=$((TIMEOUTS + ERRORS + SOLVED))
 
         # Extract trees/leaves from LAST line (grep ^{ grabs JSON objects)
@@ -94,7 +112,7 @@ while true; do
         # Validate that TOTAL is a valid number before arithmetic
         if [[ "$TOTAL" =~ ^[0-9]+$ ]] && [ "$TOTAL" -gt 0 ]; then
           PERCENT=$((FINISHED * 100 / TOTAL))
-          OUTPUT="${OUTPUT} | Progress: ${FINISHED}/${TOTAL} (${PERCENT}%) | Solved: ${SOLVED} | Timeouts: ${TIMEOUTS} | Errors: ${ERRORS} | Last Instance Trees: ${NUM_TREES} | Leaves: ${NUM_LEAVES}"
+          OUTPUT="${OUTPUT} | Progress: ${FINISHED}/${TOTAL} (${PERCENT}%) | Solved: ${SOLVED} | Timeouts: ${TIMEOUTS} (sigterm-opt: ${SIGTERM_OPT}, sigterm-subopt: ${SIGTERM_SUBOPT}, hard: ${HARD_TIMEOUTS}) | Errors: ${ERRORS} | Last Instance Trees: ${NUM_TREES} | Leaves: ${NUM_LEAVES}"
 
           # Estimate time remaining using s_wtime from the last WINDOW entries in summary.json
           if [ "$FINISHED" -gt 5 ]; then

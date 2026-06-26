@@ -53,6 +53,9 @@ class SubtreeReductionRule : public AbstractRule
 
     [[nodiscard]]
     std::string name() const override;
+
+    [[nodiscard]]
+    std::shared_ptr<AbstractRule> clone() const override;
 };
 
 }  //namespace solver

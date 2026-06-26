@@ -23,3 +23,8 @@ std::string solver::DebugAssertFalseRule::name() const
 {
     return "DebugAssertFalseRule";
 }
+
+std::shared_ptr<solver::AbstractRule> solver::DebugAssertFalseRule::clone() const
+{
+    return std::make_shared<DebugAssertFalseRule>(instance, context);
+}

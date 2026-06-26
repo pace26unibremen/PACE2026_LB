@@ -65,6 +65,12 @@ class AbstractRule
     ///
     /// The first element of the list should be applied first, followed by the next element, and so on.
     virtual std::shared_ptr<std::list<std::shared_ptr<AbstractRule>>> NextRuleSuggestion();
+
+    /// Creates a clone of the rule, i.e. a rule that will be applied to the same instance location.
+    /// \returns the clone
+    /// \warning This is not a copy, as it does not take into account whether the rule has been applied, etc.
+    [[nodiscard]]
+    virtual std::shared_ptr<AbstractRule> clone() const = 0;
 };
 
 } // namespace solver
