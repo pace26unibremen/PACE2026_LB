@@ -78,8 +78,10 @@ build-solver:
     expire_in: never
     paths:
       - build/src/startSolver
-      - build/src/solver_evalmaxsat
-      - build/src/solver_uwrmaxsat
+      # Disabled on 55-migrate-ilp-solver: solver_evalmaxsat/solver_uwrmaxsat targets
+      # were consolidated into startSolver and no longer exist.
+      #- build/src/solver_evalmaxsat
+      #- build/src/solver_uwrmaxsat
       - build/tests/ForestIOTests
       - build/tests/ForestEqualTests
       - build/tests/ForestSubforestTests
@@ -89,8 +91,10 @@ build-solver:
       - build/tests/MetricsPluginTests
       - build/tests/ILP/TreeUtilsTests
       - build/tests/ILP/ILPFormulationTests
-      - build/tests/ILP/ILPSolverSimpleTests
-      - build/tests/ILP/ILPSolverEvalMaxSATTests
+      # Disabled on 55-migrate-ilp-solver: ILPSolverSimpleTests does not exist and the
+      # EvalMaxSAT backend is not built here (see tests/ILP/CMakeLists.txt).
+      #- build/tests/ILP/ILPSolverSimpleTests
+      #- build/tests/ILP/ILPSolverEvalMaxSATTests
       - build/tests/ILP/ILPSolverUWrMaxSatTests
 
 build-solver-windows:
@@ -160,13 +164,17 @@ test-plugins:
     - ./PluginTests --reporter junit -o PluginTests-results.xml
     - ./MetricsPluginTests --reporter junit -o MetricsPluginTests-results.xml
 
-test-ilp-solver-evalmaxsat:
-  extends: .test-base
-  before_script:
-    - cd build/tests/ILP/
-    - chmod +x ILPSolverEvalMaxSATTests
-  script:
-    - ./ILPSolverEvalMaxSATTests --reporter junit -o ILPSolverEvalMaxSATTests-results.xml
+# Disabled on 55-migrate-ilp-solver: the EvalMaxSAT backend is not wired in on this
+# branch (its case is commented out in MAFILPSolver::createSolver and lib/EvalMaxSAT
+# is not built), so ILPSolverEvalMaxSATTests is not built. Re-enable together with the
+# EvalMaxSAT backend and its target in tests/ILP/CMakeLists.txt.
+#test-ilp-solver-evalmaxsat:
+#  extends: .test-base
+#  before_script:
+#    - cd build/tests/ILP/
+#    - chmod +x ILPSolverEvalMaxSATTests
+#  script:
+#    - ./ILPSolverEvalMaxSATTests --reporter junit -o ILPSolverEvalMaxSATTests-results.xml
 
 test-ilp-solver-uwrmaxsat:
   extends: .test-base
@@ -660,8 +668,8 @@ run_ILP_benchmark:
     STRIDE_TIMEOUT: 120
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_ILP${RUN_SUFFIX}"
-    STRIDE_SOLVER: "solver_evalmaxsat"
     RUN_SUFFIX: "_evalmaxsat"
+    PACE_TRACK: "maxsat" # Use the "maxsat" track, to test the ILP implementation
   extends: .run_stride_benchmark_template
   rules:
     # Skip if this is a release pipeline (merge into master)
