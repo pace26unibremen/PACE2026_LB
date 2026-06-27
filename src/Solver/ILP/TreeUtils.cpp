@@ -36,6 +36,8 @@ std::unordered_map<graph::Node*, unsigned int> buildTerminalToLabel(const graph:
 int getRootIndex(graph::Forest& forest)
 {
     // This Function should only be called, when forest is not yet split up...
+    if (forest.Roots().empty())
+        throw std::logic_error("getRootIndex: forest has no root node");
     assert(forest.Roots().size() == 1);
     std::unordered_map<const graph::Node*, int> nodeToIndex = buildNodeToIndexMap(forest);
     return nodeToIndex.at(forest.Roots()[0]);
