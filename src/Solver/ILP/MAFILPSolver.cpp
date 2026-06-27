@@ -3,24 +3,13 @@
 #include "../Rule/SubtreeReductionRule.hpp"
 #include "../Context.hpp"
 #include "TreeUtils.hpp"
-#include "TimerUtils.hpp"
 
 // Solver-Header...
-#ifdef USE_EVALMAXSAT
-#include "Interfaces/EvalMaxSATSolver.hpp"
-#endif
-#ifdef USE_SCIP
-#include "Interfaces/SCIPSolver.hpp"
-#endif
-#ifdef USE_UWRMAXSAT
 #include "Interfaces/UWrMaxSatSolver.hpp"
-#endif
 
 #include <cassert>
 #include <stdexcept> 
 #include <iostream>
-
-// TODO: Include concrete solver headers once implemented
 
 namespace solver {
 
@@ -37,39 +26,13 @@ MAFILPSolver::MAFILPSolver(const std::shared_ptr<graph::Instance>& instance,
 // =============================================================================
 bool MAFILPSolver::solve()
 {
-    // TODO: Early-exit if no constraints → trees already compatible, SPR-distance = 0
-    // If problem.nConstraints() == 0, skip solver and return reconstructMAF({})
-    // This avoids calling the ILP solver for trivial instances.
-    
-    // Apply Subtree Reduction Rule...
-    std::shared_ptr<Context> context = std::make_shared<Context>();
-    auto subtreeReduction = solver::SubtreeReductionRule::isApplicable(instance, context);
-    if (subtreeReduction)
-    {
-        std::clog << "Subtree Reduction is applicable!" << std::endl;
-        subtreeReduction->apply();
-    }
-
-    TIMER_START(t_build)
     ILPProblem problem = buildProblem();
-    TIMER_LOG(t_build, "MAFILPSOLVER::build_problem")
-
-    std::clog << "Number of Variables in Problem:" << problem.nVars() << std::endl;
-    std::clog << "Number of Constraints in Problem:" << problem.nConstraints() << std::endl;
-    TIMER_START(t_solve)
-    ILPSolution solution        = solveProblem(problem);
-    TIMER_LOG(t_solve, "MAFILPSOLVER::solve_problem")
+    ILPSolution solution = solveProblem(problem);
 
     if (!solution.feasible) 
         return false;
     std::vector<int> cutEdges   = extractCutEdges(solution);
     reconstructMAF(cutEdges);
-
-    std::cout << "MAF reconstructed successfully, trying to undo reductions..." << std::endl;
-    if (subtreeReduction)
-    {
-        subtreeReduction->unapply();
-    }
 
     return true;
 }
@@ -77,9 +40,7 @@ bool MAFILPSolver::solve()
 
 ILPProblem MAFILPSolver::buildProblem() const
 {
-    // Instance is a vector of forests...
-    // NOTE: Currently ILP Formulation is only valid for binary MAF-Problem...
-    // DEFAULT: Take first two forests as inputs...
+    // ILP Formulation is only valid for binary MAF-Problem...
     assert(instance->size() == 2);
 
     ILPFormulation formulation((*instance)[0], (*instance)[1]);
@@ -104,7 +65,6 @@ std::vector<int> MAFILPSolver::extractCutEdges(const ILPSolution& solution) cons
         if(solution.solValues[i] > 0.5)
             cutEdges.push_back(i);
     }
-
     return cutEdges;
 }
 
@@ -130,24 +90,15 @@ std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solv
     switch(solverType)
     {
         // TODO: Uncomment once concrete solvers are implemented
-        case ILPSolverType::SCIP:
-            #ifdef USE_SCIP
-                return std::make_unique<SCIPSolver>();
-            #else
-                throw std::runtime_error("SCIP not available - rebuild with USE_SCIP");
-            #endif
-        case ILPSolverType::EvalMaxSAT: 
-            #ifdef USE_EVALMAXSAT
-                return std::make_unique<EvalMaxSATSolver>();
-            #else
-                throw std::runtime_error("EvalMaxSATSolver not available - rebuild with USE_EVALMAXSAT");
-            #endif
+        // case ILPSolverType::SCIP:
+        //     return std::make_unique<SCIPSolver>();
+    
+        // case ILPSolverType::EvalMaxSAT: 
+        //     return std::make_unique<EvalMaxSATSolver>();
+            
         case ILPSolverType::UWrMaxSat: 
-            #ifdef USE_UWRMAXSAT
-                return std::make_unique<UWrMaxSatSolver>();
-            #else
-                throw std::runtime_error("UWrMaxSatSolver not available - rebuild with USE_UWRMAXSAT");
-            #endif
+            return std::make_unique<UWrMaxSatSolver>();
+
         default:
             throw std::invalid_argument("MAFILPSolver: Unknown ILP solver type");
     }

@@ -65,6 +65,7 @@ struct SolverConfig
         Heuristic,  ///< Best solution under a time limit; solver is stopped by SIGTERM.
         LowerBound, ///< Reserved — not yet implemented (see issue #55).
         Pipeline,   ///< Internal CI / stride benchmark mode; not a competition track.
+        MaxSAT,     ///< Internal mode for testing of MaxSAT Solvers; not a competition track.
     };
 
     /// \brief Which solver backend drives the search.
@@ -76,6 +77,8 @@ struct SolverConfig
         Branching, ///< Branching + reduction rules solver (\ref BranchingSolver).
         Reduction, ///< Subtree Reduction (\ref ReductionSolver).
         Cluster,   ///< Cluster Reduction (\ref ClusterSolver).
+        MaxSAT, ///< MaxSAT Solver (\ref MAFILPSolver).
+        IncrMaxSAT ///< Incremental MaxSAT Solver (\ref IncrementalMAFSolver).
     };
 
     // -----------------------------------------------------------------------
@@ -188,6 +191,21 @@ struct SolverConfig
             c.branchingConfig.plugins.push_back(p);
         c.branchingConfig.plugins.push_back(
             std::make_shared<solver::plugin::VisualizationPlugin>(dirPath));
+        return c;
+    }
+
+    /// \brief Preset for the MaxSAT testing.
+    ///
+    /// Produces a provably optimal solution.  SIGTERM is disabled.  
+    /// No metrics plugins are loaded.
+    /// Currently Testing only Incremental Solver.
+    /// \return A \c SolverConfig ready for the exact competition track.
+    static SolverConfig maxsatTrack()
+    {
+        SolverConfig c;
+        c.track = Track::MaxSAT;
+        c.solverPipeline = {SolverType::Reduction, SolverType::IncrMaxSAT};
+        c.enableSigterm = false;
         return c;
     }
 

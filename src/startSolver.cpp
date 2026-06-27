@@ -1,11 +1,6 @@
-#if defined(USE_INCR)
 #include "Solver/ILP/IncrementalMAFSolver.hpp"
-#elif defined(USE_EVALMAXSAT) || defined(USE_SCIP) || defined(USE_UWRMAXSAT)
 #include "Solver/ILP/MAFILPSolver.hpp"
-#else
 #include "Solver/BranchingSolver.hpp"
-#endif
-
 #include "Solver/Cluster/ClusterSolver.hpp"
 #include "Solver/Cluster/ClusterRange.hpp"
 #include "Solver/Plugin/SigtermPlugin.hpp"
@@ -140,6 +135,20 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                 clusterSolver = solver.get();
                 break;
             }
+            case solver::SolverConfig::SolverType::MaxSAT:
+            {
+                auto solver = std::make_shared<solver::MAFILPSolver>(instance);
+                solverList.push_back(solver);
+                solved = solver->solve();
+                break;
+            }
+            case solver::SolverConfig::SolverType::IncrMaxSAT:
+            {
+                auto solver = std::make_shared<solver::IncrementalMAFSolver>(instance);
+                solverList.push_back(solver);
+                solved = solver->solve();
+                break;
+            }
             default:
             {
                 std::clog << "Solver pipeline contains unknown solver\n";
@@ -237,6 +246,7 @@ static void printHelp(std::string_view prog)
         << "                Use for CI runs and the PACE stride harness.\n"
         << "    exact       No plugins, no SIGTERM. Use for the exact competition track.\n"
         << "    heuristic   No metrics, SIGTERM armed. Use for the heuristic track.\n"
+        << "    maxsat      No plugins, no SIGTERM. Use for MaxSAT testing.\n"
         << "  --help, -h  Print this message and exit.\n"
         << "\n"
         << "Stdin / stdout mode:\n"
@@ -251,7 +261,7 @@ static void printHelp(std::string_view prog)
         << "  3. PACE_TRACK in a .env file in the current working directory\n"
         << "  4. defaultConfig() in startSolver.cpp  (compiled-in default)\n"
         << "\n"
-        << "  Accepted values for PACE_TRACK: pipeline, exact, heuristic\n";
+        << "  Accepted values for PACE_TRACK: pipeline, exact, heuristic, maxsat.\n";
 }
 
 /// \brief Map a track name string to a \ref solver::SolverConfig.
@@ -265,6 +275,7 @@ static solver::SolverConfig resolveConfig(const std::string& name, std::ostream&
     if (name == "exact")     return solver::SolverConfig::exactTrack();
     if (name == "heuristic") return solver::SolverConfig::heuristicTrack();
     if (name == "pipeline")  return solver::SolverConfig::pipeline(out);
+    if (name == "maxsat")     return solver::SolverConfig::maxsatTrack();
     throw std::invalid_argument(
         "Unknown --track value: \"" + name + "\". "
         "Valid values: exact, heuristic, pipeline.");

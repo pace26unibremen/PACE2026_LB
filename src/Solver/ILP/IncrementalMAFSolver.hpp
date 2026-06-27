@@ -3,13 +3,13 @@
 
 #include "AbstractIncrementalSolver.hpp"
 #include "../Action/DeleteEdgeAction.hpp"
-#include "../../Cluster/LeastCommonAncestor.hpp"
+#include "../Cluster/LeastCommonAncestor.hpp"
 #include "../../Graph/Forest.hpp"
-#include "../../Graph/ForestIO.hpp"
 #include "../../Graph/Instance.hpp"
 #include "../AbstractSolver.hpp"
 #include "ILPModel.hpp"
 
+#include <unordered_map>
 #include <vector>
 #include <memory>
 
@@ -21,87 +21,132 @@ enum class MaxSATSolverType {
     EvalMaxSAT
 };
 
-
-
-inline std::ostream& operator<<(std::ostream& os, MaxSATSolverType type)
-{
-    switch (type)
-    {
-        case MaxSATSolverType::UWrMaxSAT:  os << "UWrMaxSat";  break;
-        case MaxSATSolverType::EvalMaxSAT:  os << "UWrMaxSat";  break;
-        default: os << "Unknown"; break;
-    }
-    return os;
-}
-
 class IncrementalMAFSolver : public AbstractSolver
 {
+    /// \brief Represents a LeafPair of a Solution for the MAF-Problem.
+    /// \note this is used for computing the pathpair constraints across subtrees in the MAF.
     struct LeafPair {
+        /// \brief Represents the left (first) leaf of the pair.
         unsigned int l;
+        /// \brief Represents the right (second) leaf of the pair.
         unsigned int r;
     };
 
-    static constexpr int MAX_ROUNDS = 100000;
+    /// \brief Max Number of Constraints added to Solver in each round.
     static constexpr int MAX_CONSTRAINTS_PER_ROUND = 10000;
+
     private:
-    std::vector<std::vector<int>> constraints;
-    int cnt_constraints;
-    std::unique_ptr<AbstractIncrementalSolver> solver;
-    std::shared_ptr<graph::Forest> forest_1;
-    std::shared_ptr<graph::Forest> forest_2;
-    std::unordered_map<const graph::Node*, int> nodeToIndex1;
-    std::unordered_map<const graph::Node*, int> nodeToIndex2;
-    /// \brief Precomputed LCA table for forest1.
-    /// \note Must be reinstantiated if forest1 changes.
-    std::shared_ptr<cluster::LeastCommonAncestor> lca1;
+        /// \brief Vector of Constraints for reinitialisation of UWrMaxSAT Solver
+        std::vector<std::vector<int>> constraints;
+        /// \brief Counter for total number of constraints...
+        int cnt_constraints;
 
-    /// \brief Precomputed LCA table for forest2.
-    /// \note Must be reinstantiated if forest2 changes.
-    std::shared_ptr<cluster::LeastCommonAncestor> lca2;
+        /// \brief The Incremental MaxSAT solver.
+        std::unique_ptr<AbstractIncrementalSolver> solver;
+
+        /// \brief First Tree (Forest) of binary MAF-Problem.
+        std::shared_ptr<graph::Forest> forest_1;
+        /// \brief Second Tree (Forest) of binary MAF-Problem.
+        std::shared_ptr<graph::Forest> forest_2;
+
+        /// \brief Precomputed Node <-> VarIndex Map for forest_1.
+        /// \note Must be reinstantiated if forest_1 changes.
+        std::unordered_map<const graph::Node*, int> nodeToIndex1;
+        /// \brief Precomputed Node <-> VarIndex Map for forest_2.
+        /// \note Must be reinstantiated if forest_2 changes.
+        std::unordered_map<const graph::Node*, int> nodeToIndex2;
+
+        /// \brief Precomputed LCA table for forest1.
+        /// \note Must be reinstantiated if forest1 changes.
+        std::shared_ptr<cluster::LeastCommonAncestor> lca1;
+        /// \brief Precomputed LCA table for forest_2.
+        /// \note Must be reinstantiated if forest_2 changes.
+        std::shared_ptr<cluster::LeastCommonAncestor> lca2;
 
 
-    /// \brief Creates the concrete ILP solver based on solverType.
-    /// \param solverType The solver type to create.
-    void buildSolver(MaxSATSolverType solverType);
+        /// \brief Creates the concrete ILP solver based on solverType.
+        /// \param solverType The solver type to create.
+        void buildSolver(MaxSATSolverType solverType);
 
-    /// \brief Adds initial constraints to solver.
-    void addInitialConstraints();
+        /// \brief Checks wether the current solution is a correct MAF.
+        /// \param mafSolution Current Solution.
+        /// \return true, if MAF is correct, false otherwise.
+        /// \note If current solution is not a correct MAF, the function generates violated constraints and adds it to the solver.
+        ///       For this there can be different strategies in use.
+        [[nodiscard]]
+        bool checkMAF(std::shared_ptr<graph::Forest>& mafSolution);
 
-    
-    void generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3);
+        /// \brief Adds initial constraints to solver.
+        /// \note In the Basic config there is only a linear passing of all leafs for triple and pathpair constraints...
+        void addInitialConstraints();
 
-    void generatePathPairConstraint(unsigned int lpair1, unsigned int lpair2, 
-                                                          unsigned int rpair1, unsigned int rpair2);
-    int checkTripleConstraints(int numLeaves, int n_constraints, std::vector<unsigned int> labels,
-                                                std::shared_ptr<graph::Forest>mafSolution,
-                                                std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
-                                                std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
+        /// \brief Generates the triple constraint, based on the given three leaves...
+        /// \param label1 First Leaf.
+        /// \param label2 Second Leaf.
+        /// \param label3 Third Leaf.
+        void generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3);
 
-    int checkPathPairConstraints(int n_constraints, bool linear,
-                                                std::shared_ptr<graph::Forest>mafSolution,
-                                                std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
-                                                std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
-    
+        // \brief Generates the pathpair constraint, based on the given pairs...
+        /// \param lpair1 Left leaf of first pair.
+        /// \param lpair2 Left leaf of second pair.
+        /// \param rpair1 Right leaf of first pair.
+        /// \param rpair2 Right leaf of first pair.
+        void generatePathPairConstraint(unsigned int lpair1, unsigned int lpair2, 
+                                        unsigned int rpair1, unsigned int rpair2);
 
-    /// \brief Extracts cut edges from a solution.
-    /// \param solution The solution returned by the solver.
-    /// \returns Vector of cut edge indices (0-indexed).
-    [[nodiscard]]
-    std::vector<int> extractCutEdges(const ILPSolution& ilpSolution);
+        /// \brief Checks if there are still triple constraints not satisifed by current (subtree) solution.
+        /// \param n_constraints Current number of constraints in round.
+        /// \param labels Leafs of current subtree.
+        /// \param linear Decides wether to have an incomplete linear pass or full pass.
+        /// \param mafSolution Current Solution (MAF).
+        /// \param lca_sol Precomputed LCA table for current solution.
+        /// \param nodeToIndex_sol Precomputed Node <-> VarIndex Map for current solution.
+        /// \return Updated number of constraints in round
+        /// \note If there are unsatisfied triple constraints, these will be directly added to the solver...
+        [[nodiscard]]
+        int checkTripleConstraints(int n_constraints, std::vector<unsigned int> labels, bool linear,
+                                    std::shared_ptr<graph::Forest> mafSolution,
+                                    std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
+                                    std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
+        
+        /// \brief Checks if there are still pathpair constraints not satisifed by current (subtree) solution.
+        /// \param n_constraints Current number of constraints in round.
+        /// \param linear Decides wether to have an incomplete linear pass or full pass.
+        /// \param mafSolution Current Solution (MAF).
+        /// \param lca_sol Precomputed LCA table for current solution.
+        /// \param nodeToIndex_sol Precomputed Node <-> VarIndex Map for current solution.
+        /// \return Updated number of constraints in round
+        /// \note If there are unsatisfied triple constraints, these will be directly added to the solver...
+        [[nodiscard]]                         
+        int checkPathPairConstraints(int n_constraints, bool linear,
+                                                    std::shared_ptr<graph::Forest>mafSolution,
+                                                    std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
+                                                    std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
+        
 
-    /// \brief Reconstructs the MAF from cut edges.
-    /// \param cutEdges The cut edges.
-    /// \return 
-    std::shared_ptr<graph::Forest> reconstructMAF(std::vector<int> cutEdges, bool orig);
+        /// \brief Extracts cut edges from a solution.
+        /// \param solution The solution returned by the solver.
+        /// \returns Vector of cut edge indices (0-indexed).
+        [[nodiscard]]
+        std::vector<int> extractCutEdges(const ILPSolution& ilpSolution);
 
-    [[nodiscard]]
-    bool checkMAF(std::shared_ptr<graph::Forest>& mafSolution);
+        /// \brief Reconstructs the MAF from cut edges.
+        /// \param cutEdges The cut edges.
+        /// \param orig Decides wether Solution can be applied to original instance, instead of copy.
+        /// \return A pointer to the new MAF Solution.
+        std::shared_ptr<graph::Forest> reconstructMAF(std::vector<int> cutEdges, bool orig);
 
-    [[nodiscard]]
-    std::vector<LeafPair> generateLeafPairs(std::shared_ptr<graph::Forest>& mafSolution);
-
-    [[nodiscard]]
-    std::vector<unsigned int> getSubtreeLabels(const graph::Node* subtreeRoot);
+        /// \brief Generates all leaf pairs across subtrees of current solution.
+        /// \param mafSolution Current solution.
+        /// \return A set of LeafPairs for current solution.
+        [[nodiscard]]
+        std::vector<LeafPair> generateLeafPairs(std::shared_ptr<graph::Forest>& mafSolution);
+        
+        /// \brief Calculates the leafs of a Subtree of the MAF, given the root Node of the subtree.
+        /// \param subtreeRoot Root Node of subtree.
+        /// \return Set of labels of the leafs in the subtree.
+        [[nodiscard]]
+        std::vector<unsigned int> getSubtreeLabels(const graph::Node* subtreeRoot);
 
     public:
         /// \brief Constructor.

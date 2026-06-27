@@ -15,17 +15,8 @@ std::vector<std::vector<int>> computeTripleConstraints(
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
 {
-    // Both Forests should have the same (number) of leaves...
-    //assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
-
-    // Both Index-Maps should have the same size as the Nodes()...
-    //assert(nodeToIndex1.size() == forest1.Nodes().size());
-    //assert(nodeToIndex2.size() == forest2.Nodes().size());
-
-    std::clog << "Starting compute triple constraints..."  << std::endl;
-
     std::vector<std::vector<int>> tripleConstraints;
-    // Need the labels, due to reductions these may not be iterating...
+    // Need the labels, due to reductions these may not be in order...
     std::vector<unsigned int> labels;
     for (const auto& [_, label] : forest1.TerminalToLabel())
     {
@@ -80,15 +71,6 @@ std::vector<std::vector<int>> computePathPairConstraints(
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
                 const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
 {
-
-    std::clog << "Starting compute pathpair constraints..."  << std::endl;
-    // Both Forests should have the same (number) of leaves...
-    assert(forest1.LabelToTerminal().size() == forest2.LabelToTerminal().size());
-
-    // Both Index-Maps should have the same size as the Nodes()...
-    assert(nodeToIndex1.size() == forest1.Nodes().size());
-    assert(nodeToIndex2.size() == forest2.Nodes().size());
-
     std::vector<std::vector<int>> pathPairConstraints;
 
     // Need the labels, due to reductions these may not be iterating...

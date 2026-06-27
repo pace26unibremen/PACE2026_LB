@@ -7,28 +7,38 @@
 
 namespace solver {
 
+void recBuildLabelToTerminal(graph::Node* const& n, std::unordered_map<unsigned int, graph::Node*>& labelToTerminal, const graph::Forest& forest)
+{
+    if (!n) return;
+    if (!n->leftChild)  // Blatt = kein linkes Kind
+        labelToTerminal[*n->SubtreeLabels().begin()] = n;
+    recBuildLabelToTerminal(n->leftChild, labelToTerminal, forest);
+    recBuildLabelToTerminal(n->rightChild, labelToTerminal, forest);
+}
+
+std::unordered_map<unsigned int, graph::Node*> buildLabelToTerminal(const graph::Forest& forest)
+{
+    auto labelToTerminal = std::unordered_map<unsigned int, graph::Node*>();
+    for (const auto& r : forest.Roots())
+        recBuildLabelToTerminal(r, labelToTerminal, forest);
+    return labelToTerminal;
+}
+
+std::unordered_map<graph::Node*, unsigned int> buildTerminalToLabel(const graph::Forest& forest)
+{
+    auto terminalToLabel = std::unordered_map<graph::Node*, unsigned int>();
+    auto labelToTerminal = buildLabelToTerminal(forest);
+    for (const auto& [label, node] : labelToTerminal)
+        (terminalToLabel)[node] = label;
+    return terminalToLabel;
+}
+
 int getRootIndex(graph::Forest& forest)
 {
-    int rootIndex = -1;
-    int rootCount = 0;
-    int nNodes = forest.Nodes().size();
-    for(int i = 0; i < nNodes; ++i)
-    {
-        if(forest.Nodes()[i].parent == nullptr)
-        {
-            rootIndex = i;
-            rootCount++;
-        }
-    }
-
-    // Exactly one root node must exist
-    if(rootCount > 1)
-        throw std::logic_error("TreeUtils::getRootIndex: multiple roots found");
-
-    if(rootIndex == -1)
-        throw std::logic_error("TreeUtils::getRootIndex: no root node found");
-
-    return rootIndex;
+    // This Function should only be called, when forest is not yet split up...
+    assert(forest.Roots().size() == 1);
+    std::unordered_map<const graph::Node*, int> nodeToIndex = buildNodeToIndexMap(forest);
+    return nodeToIndex.at(forest.Roots()[0]);
 }
 
 int getLCA(unsigned int leaf1, unsigned int leaf2,
@@ -36,18 +46,12 @@ int getLCA(unsigned int leaf1, unsigned int leaf2,
            cluster::LeastCommonAncestor& lca,
            const std::unordered_map<const graph::Node*, int>& nodeToIndex)
 {
-    // Labels should exist...
-    //assert(forest.LabelToTerminal().count(leaf1) > 0);
-    //assert(forest.LabelToTerminal().count(leaf2) > 0);
+    auto labelToTerminal = buildLabelToTerminal(forest);
+    // std::cout << "getLCA(): Labels: (" << leaf1 << "," << leaf2 << ")" << std::endl;
 
-    graph::Node* node1 = forest.LabelToTerminal().at(leaf1);
-    graph::Node* node2 = forest.LabelToTerminal().at(leaf2);
+    graph::Node* node1 = labelToTerminal.at(leaf1);
+    graph::Node* node2 = labelToTerminal.at(leaf2);
 
-    /*std::cout << "Forest adresse: " << &forest << std::endl;
-    std::cout << "LCA adresse: " << &lca << std::endl;
-    std::cout << "node1: " << node1 << std::endl;
-    std::cout << "node2: " << node2 << std::endl; 
-*/
     // Compute LCA of Nodes...
     graph::Node* lcaNode = lca.getLeastCommonAncestor(node1, node2);
 
@@ -56,31 +60,74 @@ int getLCA(unsigned int leaf1, unsigned int leaf2,
     return nodeToIndex.at(lcaNode);
 }
 
+// Auxiliary recursive Function for DFS of the forest.
+void recBuildNodeToIndexMap(graph::Node* const & n, std::unordered_map<const graph::Node*, int> & nodeToIndex, int &i)
+{
+    if (!n) return;
+    nodeToIndex[n] = i++;
+
+    recBuildNodeToIndexMap(n->leftChild, nodeToIndex, i);
+    recBuildNodeToIndexMap(n->rightChild, nodeToIndex, i);
+}
+
 std::unordered_map<const graph::Node*, int> buildNodeToIndexMap(const graph::Forest& forest)
 {
     std::unordered_map<const graph::Node*, int> nodeToIndex;
+    int i = 0;
 
-    for(int i = 0; i < (int)forest.Nodes().size(); ++i)
-        nodeToIndex[&forest.Nodes()[i]] = i;
-
-    // Each Node should have a unique index...
-    assert(nodeToIndex.size() == forest.Nodes().size());
+    for (const auto& r : forest.Roots())
+    {
+       recBuildNodeToIndexMap(r, nodeToIndex, i);
+    }
 
     return nodeToIndex;
+}
+
+
+// Auxiliary recursive Function for DFS of the forest.
+void recBuildIndexToNodeMap(graph::Node* & n, std::unordered_map<int, graph::Node*> & indexToNode, int &i)
+{
+    if (!n) return;
+    indexToNode[i++] = n;
+
+    recBuildIndexToNodeMap(n->leftChild, indexToNode, i);
+    recBuildIndexToNodeMap(n->rightChild, indexToNode, i);
 }
 
 std::unordered_map<int, graph::Node*> buildIndexToNodeMap(graph::Forest& forest)
 {
     std::unordered_map<int, graph::Node*> indexToNode;
+    int i = 0;
 
-    for(int i = 0; i < (int)forest.Nodes().size(); ++i)
-        indexToNode[i] = &forest.Nodes()[i];
-
-    // Each index should have a unique node...
-    assert(indexToNode.size() == forest.Nodes().size());
+    for (auto& r : forest.Roots())
+    {
+       recBuildIndexToNodeMap(r, indexToNode, i);
+    }
 
     return indexToNode;
 }
+
+// Auxiliary recursive Function for DFS of the forest.
+void recGetNumVars(graph::Node* const & n, int & i)
+{
+    if (!n) return;
+
+    i++;
+    recGetNumVars(n->leftChild, i);
+    recGetNumVars(n->rightChild, i);
+}
+
+int getNumVars(const graph::Forest& forest)
+{
+    int i = 0;
+    for (const auto& r : forest.Roots())
+    {
+        recGetNumVars(r, i);
+    }
+
+    return i;
+}
+
 
 // Checks whether the paths between two pairs of leaves are edge-disjoint.
 // Computes both paths via getPath and checks whether their intersection is empty.
@@ -91,7 +138,6 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
                           cluster::LeastCommonAncestor& lca,
                           const std::unordered_map<const graph::Node*, int>& nodeToIndex)
 {
-
     // Idea: Calculate both Paths between pairs and check wether intersection of paths is empty...
     std::vector<int> path1 = getPath(forest, lpair1, rpair1, lca, nodeToIndex);
     std::vector<int> path2 = getPath(forest, lpair2, rpair2, lca, nodeToIndex);
@@ -119,23 +165,23 @@ std::vector<int> getPath(const graph::Forest& forest,
                       unsigned int leaf1, unsigned int leaf2,
                       cluster::LeastCommonAncestor& lca,
                       const std::unordered_map<const graph::Node*, int>& nodeToIndex)
-{
-    // If path is not already in cache, calculate new...
+{ 
     std::vector<int> edges;
     if (leaf1 == leaf2)
         return edges;
 
+    auto labelToTerminal = buildLabelToTerminal(forest);
     // Get LCA...
     const graph::Node* lcaNode = lca.getLeastCommonAncestor(
-        forest.LabelToTerminal().at(leaf1),
-        forest.LabelToTerminal().at(leaf2)
+        labelToTerminal.at(leaf1),
+        labelToTerminal.at(leaf2)
     );
 
     // LCA should exist...
     assert(lcaNode != nullptr);
 
     // Path from leaf1 to LCA...
-    const graph::Node* current = forest.LabelToTerminal().at(leaf1);
+    const graph::Node* current = labelToTerminal.at(leaf1);
     while(current != lcaNode)
     {   
         assert(nodeToIndex.count(current) > 0);
@@ -144,7 +190,7 @@ std::vector<int> getPath(const graph::Forest& forest,
     }
 
     // Path from leaf2 to LCA...
-    current = forest.LabelToTerminal().at(leaf2);
+    current = labelToTerminal.at(leaf2);
     while(current != lcaNode)
     {
         assert(nodeToIndex.count(current) > 0);
@@ -154,7 +200,12 @@ std::vector<int> getPath(const graph::Forest& forest,
 
     // Set of edge indices should not be empty...
     assert(!edges.empty());
-
+    if(edges.empty())
+    {
+        std::cout << "TreeUtils::getPath: path is empty! \n" <<
+            "Leaf 1: " << leaf1 << ", Leaf 2: " << leaf2 << "\n" << std::endl; 
+        throw std::logic_error("TreeUtils::getPath: path is empty!"); 
+    }
     // Sort edges...
     std::sort(edges.begin(), edges.end());
     return edges;
@@ -168,17 +219,6 @@ bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned in
                         const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
                         const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
 {   
-    // Forests or LCAs should not be nullpointers...
-    //assert(forest1.isValid());
-    //assert(forest2.isValid());
-
-    // Labels should exist in both forests...
-    //assert(forest1.LabelToTerminal().count(leaf1) > 0);
-    //assert(forest1.LabelToTerminal().count(leaf2) > 0);
-    //assert(forest1.LabelToTerminal().count(leaf3) > 0);
-    //assert(forest2.LabelToTerminal().count(leaf1) > 0);
-    //assert(forest2.LabelToTerminal().count(leaf2) > 0);
-    //assert(forest2.LabelToTerminal().count(leaf3) > 0);
 
     // If two leaves are equal throw logic_error...
     if (leaf1 == leaf2 || leaf1 == leaf3 || leaf2 == leaf3)

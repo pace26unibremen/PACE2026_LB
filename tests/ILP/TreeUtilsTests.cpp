@@ -2,7 +2,7 @@
 
 #include "../../src/Graph/Instance.hpp"
 #include "../../src/Solver/ILP/TreeUtils.hpp"
-#include "../../src/Cluster/LeastCommonAncestor.hpp"
+#include "../../src/Solver/Cluster/LeastCommonAncestor.hpp"
 #include <iostream>
 
 using namespace graph;
@@ -48,7 +48,7 @@ TEST_CASE("getRootIndex", "[TreeUtils]")
         int root1 = solver::getRootIndex(*f1);
 
         REQUIRE(root1 >= 0);
-        REQUIRE(root1 < static_cast<int>(f1->Nodes().size()));
+        REQUIRE(root1 < static_cast<int>(getNumVars(fix.f1).size()));
         REQUIRE(f1->Nodes()[root1].parent == nullptr);
     } 
 
@@ -70,16 +70,10 @@ TEST_CASE("buildNodeToIndexMap", "[TreeUtils]")
         auto f1 = loadForest("ilp_minimal_4leaves.tree", 4, 1);
 
         auto map1 = solver::buildNodeToIndexMap(*f1);
-        int n = static_cast<int>(f1->Nodes().size());
+        int n = static_cast<int>(getNumVars(fix.f1).size());
 
         // Map has same size as Nodes()
-        REQUIRE(map1.size() == f1->Nodes().size());
-
-        // All Nodes of Forest are present in map...
-        for (const auto& node : f1->Nodes())
-        {
-            REQUIRE(map1.count(&node) == 1);
-        }
+        REQUIRE(map1.size() == getNumVars(fix.f1).size());
 
         // Valid Range & Unique indizes
         std::set<int> seenIndices;
@@ -110,10 +104,10 @@ TEST_CASE("buildIndexToNodeMap", "[TreeUtils]")
     {
         auto f1 = loadForest("ilp_minimal_4leaves.tree", 4, 1);
         auto map1 = solver::buildIndexToNodeMap(*f1);
-        int n = static_cast<int>(f1->Nodes().size());
+        int n = static_cast<int>(getNumVars(fix.f1).size());
 
         INFO("map size must equal number of nodes");
-        REQUIRE(map1.size() == f1->Nodes().size());
+        REQUIRE(map1.size() == getNumVars(fix.f1).size());
 
         INFO("all indices must be in valid range [0, nNodes)");
         for (const auto& [idx, nodePtr] : map1)
@@ -160,13 +154,13 @@ TEST_CASE("getPath", "[TreeUtils]")
     {
         auto f1 = loadForest("ilp_minimal_4leaves.tree", 4, 1);
         cluster::LeastCommonAncestor lca1(f1);
-        auto& labelToTerminal = f1->LabelToTerminal();
+        auto& labelToTerminal = solver::buildLabelToTerminal(*f1);
         auto map1 = solver::buildNodeToIndexMap(*f1);
-        int nEdges = static_cast<int>(f1->Nodes().size());
+        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
         int rootIdx = solver::getRootIndex(*f1);
 
         INFO("path to itself should be empty");
-        for (const auto& [label, nodePtr] : f1->LabelToTerminal())
+        for (const auto& [label, nodePtr] : solver::buildLabelToTerminal(*f1))
         {
             auto path = solver::getPath(*f1, label, label, lca1, map1);
             REQUIRE(path.empty());
@@ -207,9 +201,9 @@ TEST_CASE("getPath", "[TreeUtils]")
         REQUIRE(path13.size() == 4);
 
         INFO("root index must never appear in any path");
-        for (const auto& [labelA, ptrA] : f1->LabelToTerminal())
+        for (const auto& [labelA, ptrA] : solver::buildLabelToTerminal(*f1))
         {
-            for (const auto& [labelB, ptrB] : f1->LabelToTerminal())
+            for (const auto& [labelB, ptrB] : solver::buildLabelToTerminal(*f1))
             {
                 auto path = solver::getPath(*f1, labelA, labelB, lca1, map1);
                 REQUIRE(std::find(path12.begin(), path12.end(), rootIdx) == path12.end());
@@ -222,11 +216,11 @@ TEST_CASE("getPath", "[TreeUtils]")
         auto f1 = loadForest("ilp_caterpillar_5leaves.tree", 5, 1);
         cluster::LeastCommonAncestor lca1(f1);
         auto map1 = solver::buildNodeToIndexMap(*f1);
-        int nEdges = static_cast<int>(f1->Nodes().size());
+        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
         int rootIdx = solver::getRootIndex(*f1);
 
         INFO("path to itself should be empty");
-        for (const auto& [label, nodePtr] : f1->LabelToTerminal())
+        for (const auto& [label, nodePtr] : solver::buildLabelToTerminal(*f1))
         {
             auto path = solver::getPath(*f1, label, label, lca1, map1);
             REQUIRE(path.empty());

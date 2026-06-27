@@ -21,20 +21,8 @@ option(DEBUG_IMAGE_VIEW_GRAPH
        "Adds option to view graphs as image in debugger"
        OFF)
        
-option(BUILD_UWRMAXSAT "Build UWrMaxSat solver" ON)
-option(BUILD_INCREMENTAL_UWRMAXSAT "Build incremental UWrMaxSat solver" ON)
-option(BUILD_INCREMENTAL_EVALMAXSAT "Build incremental EvalMaxSat solver" ON)
+# option(BUILD_UWRMAXSAT "Build UWrMaxSat solver" ON)
 
-find_package(SCIP
-        HINTS /usr/local/lib/cmake/scip
-              /usr/local
-)
-
-if(SCIP_FOUND)
-    message(STATUS "USE_SCIP enabled")
-else()
-    message(STATUS "SCIP not found - solver_scip will not be built")
-endif()
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

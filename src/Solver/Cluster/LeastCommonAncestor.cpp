@@ -5,11 +5,12 @@ namespace cluster
 // This design apparently is standard procedure (LCA through Euler Tour, RMQ & Sparse Table)
 LeastCommonAncestor::LeastCommonAncestor(const std::shared_ptr<graph::Forest>& forestPointer)
 {
-    graph::Node* rootNode = forestPointer->Roots().front();
+    int currentPreorder = 0;
 
-    generatePreorderNumbers(rootNode, 0);
-
-    eulerTour(rootNode, 0);
+    for (graph::Node* rootNode : forestPointer->Roots()) {
+        currentPreorder = generatePreorderNumbers(rootNode, currentPreorder);
+        eulerTour(rootNode, 0);
+    }
     precomputeRangeMinimumQuery();
 }
 

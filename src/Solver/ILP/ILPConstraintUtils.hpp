@@ -3,7 +3,7 @@
 
 #include "../../Graph/Forest.hpp"
 #include "../../Graph/Node.hpp"
-#include "../../Cluster/LeastCommonAncestor.hpp"
+#include "../Cluster/LeastCommonAncestor.hpp"
 
 #include <unordered_map>
 #include <memory>

@@ -3,7 +3,7 @@
 
 #include "../../Graph/Forest.hpp"
 #include "../../Graph/Node.hpp"
-#include "../../Cluster/LeastCommonAncestor.hpp"
+#include "../Cluster/LeastCommonAncestor.hpp"
 
 #include <unordered_map>
 #include <memory>
@@ -18,6 +18,16 @@ namespace solver {
 /// \throws std::logic_error if no root node is found.
 int getRootIndex(graph::Forest& forest);
 
+/// \brief Builds an updated map, that stores all leaf labels with corresponding terminal Pointers.
+/// \param forest the (reduced) forest. 
+/// \returns Pointer to the new map...
+std::unordered_map<unsigned int, graph::Node*> buildLabelToTerminal(const graph::Forest& forest);
+
+/// \brief Builds an updated map, that stores all pointers to terminals with corresponding terminal labels.
+/// \param forest the (reduced) forest.
+/// \returns Pointer to the new map...
+std::unordered_map<graph::Node*, unsigned int> buildTerminalToLabel(const graph::Forest& forest);
+
 /// \brief Builds a map from Node pointer to index in Forest::Nodes().
 /// \note Only valid as long as the Forest is not modified.
 /// \param forest Forest on which the map is built.
@@ -25,11 +35,16 @@ int getRootIndex(graph::Forest& forest);
 std::unordered_map<const graph::Node*, int> buildNodeToIndexMap(const graph::Forest& forest);
 
 /// \brief Builds a map from index to Node pointer in Forest::Nodes().
-/// \note Not exactly the inverse of buildNodeToIndexMap as it requires a non-const Forest to return non-const Node pointers.
-/// \note Use on a copy of the Forest if the original should remain unchanged.
+/// \note Not exact inverse of buildNodeToIndexMap as non-constant nodes are needed for DeleteEdgeAction...
+/// \note Only valid as long as the Forest is not modified.
 /// \param forest Forest on which the map is built.
 /// \return Map of node index <-> node* in Forest.
 std::unordered_map<int, graph::Node*> buildIndexToNodeMap(graph::Forest& forest);
+
+/// \brief Gives back the number of current nodes in the forest, used as Variables in the ILP FOrmulation.
+/// \param forest Forest.
+/// \return Number of current Nodes, representing vertices.
+int getNumVars(const graph::Forest& forest);
 
 /// \brief Returns the index of the Most Recent Common Ancestor of two leaves.
 /// \param forest Forest, that the leaves belong to.

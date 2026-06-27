@@ -1,9 +1,10 @@
 #include "ILPFormulation.hpp"
 #include "ILPConstraintUtils.hpp"
 #include "TreeUtils.hpp"
-#include "TimerUtils.hpp"
 
 #include <cassert>
+#include <unordered_map>
+#include <vector>
 
 
 namespace solver {
@@ -13,7 +14,8 @@ ILPFormulation::ILPFormulation(std::shared_ptr<graph::Forest> forest1,
       lca1(std::make_shared<cluster::LeastCommonAncestor>(forest1)),
       lca2(std::make_shared<cluster::LeastCommonAncestor>(forest2))
 {
-    int numLeaves = forest1->LabelToTerminal().size();
+    auto labelToTerminal = buildLabelToTerminal(*forest1);
+    int numLeaves = labelToTerminal.size();
 }
 
 ILPProblem ILPFormulation::build() const
@@ -33,7 +35,7 @@ ILPProblem ILPFormulation::build() const
     auto nodeToIndex2 = buildNodeToIndexMap(*forest2);
 
     //========= 1. Add Variables ===========
-    int numVars = forest1->Nodes().size();
+    int numVars = getNumVars(*forest1);
     for(int i = 0; i < numVars; i++) 
     {
         char varName[64];
@@ -50,10 +52,7 @@ ILPProblem ILPFormulation::build() const
 
     // Triple-Constraints: for every Tripel-Constraint-Set S: ∑_{i∈S} xᵢ ≥ 1
     // NOTE: A constraint here is a set of integers, that represent Variable Indices... 
-    
-    TIMER_START(t_triple)
     std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2);
-    TIMER_LOG(t_triple, "ILPFORMULATION::computeTripleConstraints")
     
     for (const std::vector<int>& edges : tripleConstraints)
     {
@@ -67,9 +66,7 @@ ILPProblem ILPFormulation::build() const
     }
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
-    TIMER_START(t_pathpair)
     std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2);
-    TIMER_LOG(t_pathpair, "ILPFORMULATION::computePathPairConstraints")
 
     for (const std::vector<int>& edges : pathPairConstraints)
     {
