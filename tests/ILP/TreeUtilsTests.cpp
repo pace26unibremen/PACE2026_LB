@@ -48,8 +48,8 @@ TEST_CASE("getRootIndex", "[TreeUtils]")
         int root1 = solver::getRootIndex(*f1);
 
         REQUIRE(root1 >= 0);
-        REQUIRE(root1 < static_cast<int>(getNumVars(fix.f1).size()));
-        REQUIRE(f1->Nodes()[root1].parent == nullptr);
+        REQUIRE(root1 < static_cast<int>(solver::getNumVars(*f1)));
+        REQUIRE(f1->Nodes()->at(root1).parent == nullptr);
     } 
 
     SECTION("empty forest: throws logic_error")
@@ -70,10 +70,10 @@ TEST_CASE("buildNodeToIndexMap", "[TreeUtils]")
         auto f1 = loadForest("ilp_minimal_4leaves.tree", 4, 1);
 
         auto map1 = solver::buildNodeToIndexMap(*f1);
-        int n = static_cast<int>(getNumVars(fix.f1).size());
+        int n = static_cast<int>(solver::getNumVars(*f1));
 
         // Map has same size as Nodes()
-        REQUIRE(map1.size() == getNumVars(fix.f1).size());
+        REQUIRE(map1.size() == solver::getNumVars(*f1));
 
         // Valid Range & Unique indizes
         std::set<int> seenIndices;
@@ -104,10 +104,10 @@ TEST_CASE("buildIndexToNodeMap", "[TreeUtils]")
     {
         auto f1 = loadForest("ilp_minimal_4leaves.tree", 4, 1);
         auto map1 = solver::buildIndexToNodeMap(*f1);
-        int n = static_cast<int>(getNumVars(fix.f1).size());
+        int n = static_cast<int>(solver::getNumVars(*f1));
 
         INFO("map size must equal number of nodes");
-        REQUIRE(map1.size() == getNumVars(fix.f1).size());
+        REQUIRE(map1.size() == solver::getNumVars(*f1));
 
         INFO("all indices must be in valid range [0, nNodes)");
         for (const auto& [idx, nodePtr] : map1)
@@ -120,7 +120,7 @@ TEST_CASE("buildIndexToNodeMap", "[TreeUtils]")
         for (const auto& [idx, nodePtr] : map1)
         {
             bool found = false;
-            for (const auto& node : f1->Nodes())
+            for (const auto& node : *f1->Nodes())
             {
                 if (&node == nodePtr) { found = true; break; }
             }
@@ -154,9 +154,9 @@ TEST_CASE("getPath", "[TreeUtils]")
     {
         auto f1 = loadForest("ilp_minimal_4leaves.tree", 4, 1);
         cluster::LeastCommonAncestor lca1(f1);
-        auto& labelToTerminal = solver::buildLabelToTerminal(*f1);
+        auto labelToTerminal = solver::buildLabelToTerminal(*f1);
         auto map1 = solver::buildNodeToIndexMap(*f1);
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
+        int nEdges = static_cast<int>(solver::getNumVars(*f1));
         int rootIdx = solver::getRootIndex(*f1);
 
         INFO("path to itself should be empty");
@@ -216,7 +216,7 @@ TEST_CASE("getPath", "[TreeUtils]")
         auto f1 = loadForest("ilp_caterpillar_5leaves.tree", 5, 1);
         cluster::LeastCommonAncestor lca1(f1);
         auto map1 = solver::buildNodeToIndexMap(*f1);
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
+        int nEdges = static_cast<int>(solver::getNumVars(*f1));
         int rootIdx = solver::getRootIndex(*f1);
 
         INFO("path to itself should be empty");

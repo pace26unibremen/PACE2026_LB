@@ -4,7 +4,7 @@
 #include "../../src/Solver/ILP/ILPFormulation.hpp"
 #include "../../src/Solver/ILP/ILPConstraintUtils.hpp"
 #include "../../src/Solver/ILP/TreeUtils.hpp"
-#include "../../src/Cluster/LeastCommonAncestor.hpp"
+#include "../../src/Solver/Cluster/LeastCommonAncestor.hpp"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -72,7 +72,7 @@ TEST_CASE("computeTripleConstraints", "[ILPConstraintUtils]")
     SECTION("structural properties hold for all constraints")
     {
         ConstraintTestFixture fix("ilp_asymmetric_4leaves.nw");
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size()) - 1;
+        int nEdges = solver::getNumVars(*fix.f1) - 1;
 
         auto constraints = solver::computeTripleConstraints(
             *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
@@ -142,7 +142,7 @@ TEST_CASE("computePathPairConstraints", "[ILPConstraintUtils]")
     SECTION("structural properties hold for all constraints")
     {
         ConstraintTestFixture fix("ilp_caterpillar_5leaves.nw");
-        int nEdges = static_cast<int>(getNumVars(fix.f1)().size()) - 1;
+        int nEdges = solver::getNumVars(*fix.f1) - 1;
 
         auto constraints = solver::computePathPairConstraints(
             *fix.f1, *fix.f2, fix.lca1, fix.lca2, fix.map1, fix.map2);
@@ -192,7 +192,7 @@ TEST_CASE("ILPFormulation::build", "[ILPFormulation]")
         INFO("ILP must be a minimization problem");
         REQUIRE(problem.fMinimize);
 
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
+        int nEdges = solver::getNumVars(*f1);
         INFO("number of variables must equal total number of edges in both forests");
         REQUIRE(problem.nVars() == nEdges); 
 
@@ -240,7 +240,7 @@ TEST_CASE("ILPFormulation::build", "[ILPFormulation]")
             }
         }
 
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
+        int nEdges = solver::getNumVars(*f1);
         INFO("number of variables must equal total number of edges in both forests");
         REQUIRE(problem.nVars() == nEdges); // Should be 7...
 
@@ -255,7 +255,7 @@ TEST_CASE("ILPFormulation::build", "[ILPFormulation]")
         solver::ILPFormulation formulation(f1, f2);
         auto problem = formulation.build();
         
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
+        int nEdges = solver::getNumVars(*f1);
         INFO("number of variables must equal total number of edges in both forests");
         REQUIRE(problem.nVars() == nEdges); // Should be 2...
  
@@ -269,7 +269,7 @@ TEST_CASE("ILPFormulation::build", "[ILPFormulation]")
         solver::ILPFormulation formulation(f1, f2);
         auto problem = formulation.build();
 
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
+        int nEdges = solver::getNumVars(*f1);
         INFO("number of variables must equal total number of edges in both forests");
         REQUIRE(problem.nVars() == nEdges); // Should be 5...
         
@@ -284,7 +284,7 @@ TEST_CASE("ILPFormulation::build", "[ILPFormulation]")
         solver::ILPFormulation formulation(f1, f2);
         auto problem = formulation.build();
 
-        int nEdges = static_cast<int>(getNumVars(fix.f1).size());
+        int nEdges = solver::getNumVars(*f1);
         INFO("number of variables must equal total number of edges in both forests");
         REQUIRE(problem.nVars() == nEdges); // Should be 9...
         
