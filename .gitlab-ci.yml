@@ -467,6 +467,7 @@ build_stride:
     STRIDE_TIMEOUT: 1800
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}"
+    STRIDE_SOLVER: "startSolver"
     PACE_TRACK: "pipeline"
   before_script:
     - echo "Setting up SSH for HPC access..."
