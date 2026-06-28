@@ -34,7 +34,7 @@ class IncrementalMAFSolver : public AbstractSolver
     };
 
     /// \brief Max Number of Constraints added to Solver in each round.
-    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 100000;
+    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 50000;
 
     private:
         /// \brief Context information about the instance and the solver state

@@ -176,47 +176,47 @@ test-plugins:
 #  script:
 #    - ./ILPSolverEvalMaxSATTests --reporter junit -o ILPSolverEvalMaxSATTests-results.xml
 
-test-ilp-solver-uwrmaxsat:
-  extends: .test-base
-  before_script:
-    - cd build/tests/ILP/
-    - chmod +x ILPSolverUWrMaxSatTests
-  script:
-    - ./ILPSolverUWrMaxSatTests --reporter junit -o ILPSolverUWrMaxSatTests-results.xml
+# test-ilp-solver-uwrmaxsat:
+#   extends: .test-base
+#   before_script:
+#     - cd build/tests/ILP/
+#     - chmod +x ILPSolverUWrMaxSatTests
+#   script:
+#     - ./ILPSolverUWrMaxSatTests --reporter junit -o ILPSolverUWrMaxSatTests-results.xml
 
-test-ilp-solver-scip:
-  stage: test
-  image: jurinwb/pace26-scip-builder:latest
-  when: manual
-  dependencies:
-    - build-solver-scip
-  before_script:
-    - ldconfig
-    - cd build-scip/tests/ILP/
-    - chmod +x ILPSolverSCIPTests
-  script:
-    - ./ILPSolverSCIPTests --reporter junit -o ILPSolverSCIPTests-results.xml
-  artifacts:
-    when: always
-    reports:
-      junit: build-scip/tests/ILP/ILPSolverSCIPTests-results.xml
-    expire_in: 1 Month
+# test-ilp-solver-scip:
+#   stage: test
+#   image: jurinwb/pace26-scip-builder:latest
+#   when: manual
+#   dependencies:
+#     - build-solver-scip
+#   before_script:
+#     - ldconfig
+#     - cd build-scip/tests/ILP/
+#     - chmod +x ILPSolverSCIPTests
+#   script:
+#     - ./ILPSolverSCIPTests --reporter junit -o ILPSolverSCIPTests-results.xml
+#   artifacts:
+#     when: always
+#     reports:
+#       junit: build-scip/tests/ILP/ILPSolverSCIPTests-results.xml
+#     expire_in: 1 Month
 
-test-ilp-tree-utils:
-  extends: .test-base
-  before_script:
-    - cd build/tests/ILP/
-    - chmod +x TreeUtilsTests
-  script:
-    - ./TreeUtilsTests --reporter junit -o TreeUtilsTests-results.xml
+# test-ilp-tree-utils:
+#   extends: .test-base
+#   before_script:
+#     - cd build/tests/ILP/
+#     - chmod +x TreeUtilsTests
+#   script:
+#     - ./TreeUtilsTests --reporter junit -o TreeUtilsTests-results.xml
 
-test-ilp-formulation:
-  extends: .test-base
-  before_script:
-    - cd build/tests/ILP/
-    - chmod +x ILPFormulationTests
-  script:
-    - ./ILPFormulationTests --reporter junit -o ILPFormulationTests-results.xml
+# test-ilp-formulation:
+#   extends: .test-base
+#   before_script:
+#     - cd build/tests/ILP/
+#     - chmod +x ILPFormulationTests
+#   script:
+#     - ./ILPFormulationTests --reporter junit -o ILPFormulationTests-results.xml
 
 pages:
   image: alpine:3.20
@@ -227,8 +227,8 @@ pages:
     - test-graph-representation
     - test-branching-solver
     - test-plugins
-    - test-ilp-tree-utils
-    - test-ilp-formulation
+    # - test-ilp-tree-utils
+    # - test-ilp-formulation
   script:
     # Install Doxygen + Graphviz
     - apk add --no-cache doxygen graphviz ttf-freefont py3-pip

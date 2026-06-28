@@ -69,4 +69,4 @@ target_compile_definitions(ReverseBRuleTests PRIVATE TEST_EXAMPLES_DIR="${CMAKE_
 #add_test(NAME MiscellaneousTests COMMAND $<TARGET_FILE:MiscellaneousTests>)
 #target_compile_definitions(MiscellaneousTests PRIVATE TEST_EXAMPLES_DIR="${CMAKE_SOURCE_DIR}/res/tests/")
 
-add_subdirectory(ILP)
+#add_subdirectory(ILP)

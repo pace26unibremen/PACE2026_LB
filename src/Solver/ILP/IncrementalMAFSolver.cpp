@@ -269,19 +269,19 @@ void IncrementalMAFSolver::addInitialConstraints()
         } 
     }
 
-    // for (int i = 0; i + 3 < numLeaves; i += 4)
-    // {   
-    //     if (labels[i] == labels[i+1] || labels[i] == labels[i+3] || labels[i+2] == labels[i+1] || labels[i+2] == labels[i+3]) continue;
-    //     {
-    //         if(!areTwoPathsDisjoint((*forest_1), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca1), nodeToIndex1)) continue;
-    //         if( areTwoPathsDisjoint((*forest_2), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca2), nodeToIndex2)) continue;
+    for (int i = 0; i + 3 < numLeaves; i += 4)
+    {   
+        if (labels[i] == labels[i+1] || labels[i] == labels[i+3] || labels[i+2] == labels[i+1] || labels[i+2] == labels[i+3]) continue;
+        {
+            if(!areTwoPathsDisjoint((*forest_1), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca1), nodeToIndex1, labelToTerminal1)) continue;
+            if( areTwoPathsDisjoint((*forest_2), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca2), nodeToIndex2, labelToTerminal2)) continue;
 
-    //         generatePathPairConstraint(labels[i], labels[i+1], labels[i+2], labels[i+3]);
-    //         n_constraints++; 
-    //     }
-    // }
+            generatePathPairConstraint(labels[i], labels[i+1], labels[i+2], labels[i+3]);
+            n_constraints++; 
+        }
+    }
     std::cout << "#r constraints: " << n_constraints << std::endl;
-    // std::cout << "#r Pathpair constraints used! " << std::endl;
+    std::cout << "#r Pathpair constraints used! " << std::endl;
 }
 
 int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<unsigned int> labels, bool linear,
