@@ -7,6 +7,7 @@
 #include "../../Graph/Forest.hpp"
 #include "../../Graph/Instance.hpp"
 #include "../AbstractSolver.hpp"
+#include "../Context.hpp"
 #include "ILPModel.hpp"
 
 #include <unordered_map>
@@ -33,9 +34,12 @@ class IncrementalMAFSolver : public AbstractSolver
     };
 
     /// \brief Max Number of Constraints added to Solver in each round.
-    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 10000;
+    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 100000;
 
     private:
+        /// \brief Context information about the instance and the solver state
+        std::shared_ptr<Context> context = std::make_shared<Context>();
+
         /// \brief Vector of Constraints for reinitialisation of UWrMaxSAT Solver
         std::vector<std::vector<int>> constraints;
         /// \brief Counter for total number of constraints...
@@ -55,6 +59,15 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \brief Precomputed Node <-> VarIndex Map for forest_2.
         /// \note Must be reinstantiated if forest_2 changes.
         std::unordered_map<const graph::Node*, int> nodeToIndex2;
+
+        /// \brief Precomputed LabeltoTerminal Map for forest_1.
+        /// \note Must be reinstantiated if forest_1 changes.
+        /// \note This is needed, as the reduction solver doesn't update the map.
+        std::unordered_map<unsigned int, graph::Node*> labelToTerminal1;
+        /// \brief Precomputed LabeltoTerminal Map for forest_1.
+        /// \note Must be reinstantiated if forest_1 changes.
+        /// \note This is needed, as the reduction solver doesn't update the map.
+        std::unordered_map<unsigned int, graph::Node*> labelToTerminal2;
 
         /// \brief Precomputed LCA table for forest1.
         /// \note Must be reinstantiated if forest1 changes.
@@ -101,13 +114,15 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \param mafSolution Current Solution (MAF).
         /// \param lca_sol Precomputed LCA table for current solution.
         /// \param nodeToIndex_sol Precomputed Node <-> VarIndex Map for current solution.
+        /// \param labelToTerminal_sol Precomputed LabeltoTerminal Map for current solution.
         /// \return Updated number of constraints in round
         /// \note If there are unsatisfied triple constraints, these will be directly added to the solver...
         [[nodiscard]]
         int checkTripleConstraints(int n_constraints, std::vector<unsigned int> labels, bool linear,
-                                    std::shared_ptr<graph::Forest> mafSolution,
-                                    std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
-                                    std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
+                                    std::shared_ptr<graph::Forest>& mafSolution,
+                                    std::shared_ptr<cluster::LeastCommonAncestor>& lca_sol,
+                                    std::unordered_map<const graph::Node*, int>& nodeToIndex_sol,
+                                    std::unordered_map<unsigned int, graph::Node*>& labelToTerminal_sol);
         
         /// \brief Checks if there are still pathpair constraints not satisifed by current (subtree) solution.
         /// \param n_constraints Current number of constraints in round.
@@ -119,9 +134,10 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \note If there are unsatisfied triple constraints, these will be directly added to the solver...
         [[nodiscard]]                         
         int checkPathPairConstraints(int n_constraints, bool linear,
-                                                    std::shared_ptr<graph::Forest>mafSolution,
-                                                    std::shared_ptr<cluster::LeastCommonAncestor> lca_sol,
-                                                    std::unordered_map<const graph::Node*, int> nodeToIndex_sol);
+                                                    std::shared_ptr<graph::Forest>& mafSolution,
+                                                    std::shared_ptr<cluster::LeastCommonAncestor>& lca_sol,
+                                                    std::unordered_map<const graph::Node*, int>& nodeToIndex_sol,
+                                                    std::unordered_map<unsigned int, graph::Node*>& labelToTerminal_sol);
         
 
         /// \brief Extracts cut edges from a solution.
@@ -146,13 +162,19 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \param subtreeRoot Root Node of subtree.
         /// \return Set of labels of the leafs in the subtree.
         [[nodiscard]]
-        std::vector<unsigned int> getSubtreeLabels(const graph::Node* subtreeRoot);
+        std::vector<unsigned int> getSubtreeLabels(const graph::Node* subtreeRoot, std::shared_ptr<graph::Forest>& forest);
 
     public:
         /// \brief Constructor.
         /// \param instance The instance to solve.
         /// \param solverType The ILP solver to use.
         IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance);
+
+        /// \brief Constructor.
+        /// \param instance The instance to solve.
+        /// \param solverType The ILP solver to use.
+        /// \param context additional context for the instance
+        IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance, const std::shared_ptr<solver::Context>& context);
 
         /// \brief Solves the instance.
         /// \returns true if solve was successful, otherwise false.

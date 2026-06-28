@@ -6,6 +6,7 @@
 #include "../../Graph/ForestIO.hpp"
 #include "../../Graph/Instance.hpp"
 #include "../AbstractSolver.hpp"
+#include "../Context.hpp"
 #include "ILPFormulation.hpp"
 
 #include <vector>
@@ -17,7 +18,7 @@ namespace solver {
 enum class ILPSolverType {
     SCIP,
     EvalMaxSAT,
-    UWrMaxSat
+    UWrMaxSAT
 };
 
 /// \brief Solves the MAF problem exactly via ILP formulation.
@@ -30,6 +31,9 @@ enum class ILPSolverType {
 class MAFILPSolver : public AbstractSolver
 {
     private:
+    /// \brief Context information about the instance and the solver state
+    std::shared_ptr<Context> context = std::make_shared<Context>();
+
     /// \brief The ILP solver.
     std::unique_ptr<AbstractILPSolver> ilpSolver;
 
@@ -64,7 +68,14 @@ class MAFILPSolver : public AbstractSolver
         /// \param instance The instance to solve.
         /// \param solverType The ILP solver to use.
         MAFILPSolver(const std::shared_ptr<graph::Instance>& instance,
-                    ILPSolverType solverType = ILPSolverType::EvalMaxSAT);
+                    ILPSolverType solverType = ILPSolverType::UWrMaxSAT);
+
+        /// \brief Constructor.
+        /// \param instance The instance to solve.
+        /// \param solverType The ILP solver to use.
+        /// \param context additional context for the instance
+        MAFILPSolver(const std::shared_ptr<graph::Instance>& instance, ILPSolverType solverType,
+                     const std::shared_ptr<solver::Context>& context);
 
         /// \brief Solves the instance.
         /// \returns true if solve was successful, otherwise false.

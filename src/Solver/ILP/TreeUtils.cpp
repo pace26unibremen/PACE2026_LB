@@ -7,30 +7,13 @@
 
 namespace solver {
 
-void recBuildLabelToTerminal(graph::Node* const& n, std::unordered_map<unsigned int, graph::Node*>& labelToTerminal, const graph::Forest& forest)
-{
-    if (!n) return;
-    if (!n->leftChild)  // Blatt = kein linkes Kind
-        labelToTerminal[*n->SubtreeLabels().begin()] = n;
-    recBuildLabelToTerminal(n->leftChild, labelToTerminal, forest);
-    recBuildLabelToTerminal(n->rightChild, labelToTerminal, forest);
-}
 
 std::unordered_map<unsigned int, graph::Node*> buildLabelToTerminal(const graph::Forest& forest)
 {
     auto labelToTerminal = std::unordered_map<unsigned int, graph::Node*>();
-    for (const auto& r : forest.Roots())
-        recBuildLabelToTerminal(r, labelToTerminal, forest);
+    for (auto& [node, label] : forest.TerminalToLabel())
+        (labelToTerminal)[label] = node;
     return labelToTerminal;
-}
-
-std::unordered_map<graph::Node*, unsigned int> buildTerminalToLabel(const graph::Forest& forest)
-{
-    auto terminalToLabel = std::unordered_map<graph::Node*, unsigned int>();
-    auto labelToTerminal = buildLabelToTerminal(forest);
-    for (const auto& [label, node] : labelToTerminal)
-        (terminalToLabel)[node] = label;
-    return terminalToLabel;
 }
 
 int getRootIndex(graph::Forest& forest)
@@ -46,11 +29,9 @@ int getRootIndex(graph::Forest& forest)
 int getLCA(unsigned int leaf1, unsigned int leaf2,
            const graph::Forest& forest,
            cluster::LeastCommonAncestor& lca,
-           const std::unordered_map<const graph::Node*, int>& nodeToIndex)
+           const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+           const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal)
 {
-    auto labelToTerminal = buildLabelToTerminal(forest);
-    // std::cout << "getLCA(): Labels: (" << leaf1 << "," << leaf2 << ")" << std::endl;
-
     graph::Node* node1 = labelToTerminal.at(leaf1);
     graph::Node* node2 = labelToTerminal.at(leaf2);
 
@@ -138,11 +119,12 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
                           unsigned int lpair1, unsigned int rpair1,
                           unsigned int lpair2, unsigned int rpair2,
                           cluster::LeastCommonAncestor& lca,
-                          const std::unordered_map<const graph::Node*, int>& nodeToIndex)
+                          const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+                          const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal)
 {
     // Idea: Calculate both Paths between pairs and check wether intersection of paths is empty...
-    std::vector<int> path1 = getPath(forest, lpair1, rpair1, lca, nodeToIndex);
-    std::vector<int> path2 = getPath(forest, lpair2, rpair2, lca, nodeToIndex);
+    std::vector<int> path1 = getPath(forest, lpair1, rpair1, lca, nodeToIndex, labelToTerminal);
+    std::vector<int> path2 = getPath(forest, lpair2, rpair2, lca, nodeToIndex, labelToTerminal);
 
     // If one path is empty throw logic_error...
     if (path1.empty() || path2.empty())
@@ -166,13 +148,13 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
 std::vector<int> getPath(const graph::Forest& forest,
                       unsigned int leaf1, unsigned int leaf2,
                       cluster::LeastCommonAncestor& lca,
-                      const std::unordered_map<const graph::Node*, int>& nodeToIndex)
+                      const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+                      const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal)
 { 
     std::vector<int> edges;
     if (leaf1 == leaf2)
         return edges;
 
-    auto labelToTerminal = buildLabelToTerminal(forest);
     // Get LCA...
     const graph::Node* lcaNode = lca.getLeastCommonAncestor(
         labelToTerminal.at(leaf1),
@@ -219,7 +201,9 @@ bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned in
                         cluster::LeastCommonAncestor& lca1,
                         cluster::LeastCommonAncestor& lca2, 
                         const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2)
+                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
+                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal1,
+                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal2)
 {   
 
     // If two leaves are equal throw logic_error...
@@ -228,12 +212,12 @@ bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned in
 
     bool fIncTriple = false;
 
-    int lcaij1 = getLCA(leaf1, leaf2, forest1, lca1, nodeToIndex1);
-    int lcajk1 = getLCA(leaf2, leaf3, forest1, lca1, nodeToIndex1);
-    int lcaik1 = getLCA(leaf1, leaf3, forest1, lca1, nodeToIndex1);
-    int lcaij2 = getLCA(leaf1, leaf2, forest2, lca2, nodeToIndex2);
-    int lcajk2 = getLCA(leaf2, leaf3, forest2, lca2, nodeToIndex2);
-    int lcaik2 = getLCA(leaf1, leaf3, forest2, lca2, nodeToIndex2);
+    int lcaij1 = getLCA(leaf1, leaf2, forest1, lca1, nodeToIndex1, labelToTerminal1);
+    int lcajk1 = getLCA(leaf2, leaf3, forest1, lca1, nodeToIndex1, labelToTerminal1);
+    int lcaik1 = getLCA(leaf1, leaf3, forest1, lca1, nodeToIndex1, labelToTerminal1);
+    int lcaij2 = getLCA(leaf1, leaf2, forest2, lca2, nodeToIndex2, labelToTerminal2);
+    int lcajk2 = getLCA(leaf2, leaf3, forest2, lca2, nodeToIndex2, labelToTerminal2);
+    int lcaik2 = getLCA(leaf1, leaf3, forest2, lca2, nodeToIndex2, labelToTerminal2);
 
     if(lcaij1 == lcajk1)
     {

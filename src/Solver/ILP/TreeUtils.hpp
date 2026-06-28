@@ -23,11 +23,6 @@ int getRootIndex(graph::Forest& forest);
 /// \returns Pointer to the new map...
 std::unordered_map<unsigned int, graph::Node*> buildLabelToTerminal(const graph::Forest& forest);
 
-/// \brief Builds an updated map, that stores all pointers to terminals with corresponding terminal labels.
-/// \param forest the (reduced) forest.
-/// \returns Pointer to the new map...
-std::unordered_map<graph::Node*, unsigned int> buildTerminalToLabel(const graph::Forest& forest);
-
 /// \brief Builds a map from Node pointer to index in Forest::Nodes().
 /// \note Only valid as long as the Forest is not modified.
 /// \param forest Forest on which the map is built.
@@ -54,7 +49,8 @@ int getNumVars(const graph::Forest& forest);
 /// \param nodeToIndex Map that helps extract the Index of common ancestor.
 /// \return Most Recent Common Ancestor of both Leaves.
 int getLCA(int leaf1, unsigned int leaf2, const graph::Forest& forest, cluster::LeastCommonAncestor& lca,
-            const std::unordered_map<const graph::Node*, int>& nodeToIndex);
+            const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+            const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal);
 
 /// \brief Returns the set of edge indices on the path between two leaves.
 /// \param forest Forest, that the leaves belong to.
@@ -67,7 +63,8 @@ int getLCA(int leaf1, unsigned int leaf2, const graph::Forest& forest, cluster::
 std::vector<int> getPath(const graph::Forest& forest,
                       unsigned int leaf1, unsigned int leaf2,
                       cluster::LeastCommonAncestor& lca,
-                      const std::unordered_map<const graph::Node*, int>& nodeToIndex);
+                      const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+                      const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal);
 
 /// \brief Checks whether two paths between leaf pairs are disjoint.
 /// \param forest Forest, that the leaves belong to.
@@ -82,7 +79,8 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
                           unsigned int lpair1, unsigned int rpair1,
                           unsigned int lpair2, unsigned int rpair2,
                           cluster::LeastCommonAncestor& lca,
-                          const std::unordered_map<const graph::Node*, int>& nodeToIndex);
+                          const std::unordered_map<const graph::Node*, int>& nodeToIndex,
+                          const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal);
 
 /// \brief Checks wether Triple of Leaves is topologically incompatible between two trees.
 /// \param forest1 First Tree (Forest) of binary MAF-Problem.
@@ -102,7 +100,9 @@ bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned in
                         cluster::LeastCommonAncestor& lca1,
                         cluster::LeastCommonAncestor& lca2, 
                         const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2);
+                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
+                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal1,
+                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal2);
 
 
 }  // namespace solver

@@ -9,3 +9,4 @@ pace26stride
 LocalConfig.cmake
 debug/
 incremental/
+Launch*

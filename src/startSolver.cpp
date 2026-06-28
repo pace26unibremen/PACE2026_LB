@@ -137,16 +137,44 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
             }
             case solver::SolverConfig::SolverType::MaxSAT:
             {
-                auto solver = std::make_shared<solver::MAFILPSolver>(instance);
-                solverList.push_back(solver);
-                solved = solver->solve();
+                if (clusterSolver)
+                {
+                    bool allClustersSolved = true;
+                    for (const auto& [cluster, context] : clusterSolver->Clusters())
+                    {
+                        auto solver = std::make_shared<solver::MAFILPSolver>(cluster, solver::ILPSolverType::UWrMaxSAT, context);
+                        solverList.push_back(solver);
+                        allClustersSolved &= solver->solve();
+                    }
+                    solved = allClustersSolved;
+                }
+                else 
+                {
+                    auto solver = std::make_shared<solver::MAFILPSolver>(instance, solver::ILPSolverType::UWrMaxSAT);
+                    solverList.push_back(solver);
+                    solved = solver->solve();
+                }
                 break;
             }
             case solver::SolverConfig::SolverType::IncrMaxSAT:
             {
-                auto solver = std::make_shared<solver::IncrementalMAFSolver>(instance);
-                solverList.push_back(solver);
-                solved = solver->solve();
+                if (clusterSolver)
+                {
+                    bool allClustersSolved = true;
+                    for (const auto& [cluster, context] : clusterSolver->Clusters())
+                    {
+                        auto solver = std::make_shared<solver::IncrementalMAFSolver>(cluster, context);
+                        solverList.push_back(solver);
+                        allClustersSolved &= solver->solve();
+                    }
+                    solved = allClustersSolved;
+                }
+                else 
+                {
+                    auto solver = std::make_shared<solver::IncrementalMAFSolver>(instance);
+                    solverList.push_back(solver);
+                    solved = solver->solve();
+                }
                 break;
             }
             default:

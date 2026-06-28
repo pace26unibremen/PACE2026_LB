@@ -21,6 +21,16 @@ MAFILPSolver::MAFILPSolver(const std::shared_ptr<graph::Instance>& instance,
     ilpSolver = createSolver(solverType);
 }
 
+// Constructor...
+MAFILPSolver::MAFILPSolver(const std::shared_ptr<graph::Instance>& instance,
+                           ILPSolverType solverType,
+                           const std::shared_ptr<solver::Context>& context) : 
+    AbstractSolver(instance),
+    context(context)
+{
+    ilpSolver = createSolver(solverType);
+}
+
 // =============================================================================
 // solve
 // =============================================================================
@@ -42,7 +52,11 @@ ILPProblem MAFILPSolver::buildProblem() const
 {
     // ILP Formulation is only valid for binary MAF-Problem...
     assert(instance->size() == 2);
-
+    if (context)
+    {
+        ILPFormulation formulation((*instance)[0], (*instance)[1], context->clusterRootLabel);
+        return formulation.build();
+    }
     ILPFormulation formulation((*instance)[0], (*instance)[1]);
     return formulation.build();
 }
@@ -96,7 +110,7 @@ std::unique_ptr<AbstractILPSolver> MAFILPSolver::createSolver(ILPSolverType solv
         // case ILPSolverType::EvalMaxSAT: 
         //     return std::make_unique<EvalMaxSATSolver>();
             
-        case ILPSolverType::UWrMaxSat: 
+        case ILPSolverType::UWrMaxSAT: 
             return std::make_unique<UWrMaxSatSolver>();
 
         default:
