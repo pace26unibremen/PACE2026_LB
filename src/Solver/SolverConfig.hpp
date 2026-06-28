@@ -204,7 +204,7 @@ struct SolverConfig
     {
         SolverConfig c;
         c.track = Track::MaxSAT;
-        c.solverPipeline = {SolverType::Reduction, SolverType::IncrMaxSAT};
+        c.solverPipeline = {SolverType::Reduction, SolverType::MaxSAT};
         c.enableSigterm = false;
         return c;
     }
