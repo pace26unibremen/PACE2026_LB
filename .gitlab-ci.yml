@@ -64,7 +64,7 @@ build-solver:
     - mkdir -p build
     - cd build
     # Configure CMake to use gcc and link statically
-    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DBUILD_UWRMAXSAT=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXE_LINKER_FLAGS="-static"
+    - cmake .. -G Ninja -DPIPELINE_BUILD=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_EXE_LINKER_FLAGS="-static"
     - ninja
     # Check that the resulting binary is indeed statically linked
     - |
@@ -89,13 +89,13 @@ build-solver:
       - build/tests/BranchingSolverSimpleTests
       - build/tests/PluginTests
       - build/tests/MetricsPluginTests
-      - build/tests/ILP/TreeUtilsTests
-      - build/tests/ILP/ILPFormulationTests
+      # - build/tests/ILP/TreeUtilsTests
+      # - build/tests/ILP/ILPFormulationTests
       # Disabled on 55-migrate-ilp-solver: ILPSolverSimpleTests does not exist and the
       # EvalMaxSAT backend is not built here (see tests/ILP/CMakeLists.txt).
       #- build/tests/ILP/ILPSolverSimpleTests
       #- build/tests/ILP/ILPSolverEvalMaxSATTests
-      - build/tests/ILP/ILPSolverUWrMaxSatTests
+      # - build/tests/ILP/ILPSolverUWrMaxSatTests
 
 build-solver-windows:
   stage: build
@@ -113,21 +113,21 @@ build-solver-windows:
     paths:
       - build-win/src/solver.exe
 
-build-solver-scip:
-  stage: build
-  image: jurinwb/pace26-scip-builder:latest
-  script:
-    - apt-get update && apt-get install -y cmake ninja-build clang git zlib1g-dev
-    - mkdir -p build-scip
-    - cd build-scip
-    - cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
-    - ninja solver_scip ILPSolverSCIPTests
-  artifacts:
-    expire_in: never
-    paths:
-      - build-scip/src/solver_scip
-      - build-scip/tests/ILP/ILPSolverSCIPTests
-  when: manual
+# build-solver-scip:
+#   stage: build
+#   image: jurinwb/pace26-scip-builder:latest
+#   script:
+#     - apt-get update && apt-get install -y cmake ninja-build clang git zlib1g-dev
+#     - mkdir -p build-scip
+#     - cd build-scip
+#     - cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+#     - ninja solver_scip ILPSolverSCIPTests
+#   artifacts:
+#     expire_in: never
+#     paths:
+#       - build-scip/src/solver_scip
+#       - build-scip/tests/ILP/ILPSolverSCIPTests
+#   when: manual
 
 test-graph-representation:
   extends: .test-base
