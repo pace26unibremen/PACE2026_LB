@@ -23,14 +23,11 @@ class ACBranchingRule : public AbstractBranchingRule
 {
   protected:
 
-    /// \brief first label
-    unsigned int label1;
+    /// \brief label of the a-node
+    unsigned int aLabel;
 
-    /// \brief second label
-    unsigned int label2;
-
-    /// list of all forests where the two terminals  aren't siblings.
-    std::list<std::shared_ptr<graph::Forest>> forestsConnectedLabels;
+    /// \brief label of the c-node
+    unsigned int cLabel;
 
     /// \brief Stack of action that modify the instance,
     /// filled in the apply method and unfilled in the unapply method
@@ -43,13 +40,13 @@ class ACBranchingRule : public AbstractBranchingRule
   public:
     /// \param instance the problem instance
     /// \param context information about the instance and the solver state
-    /// \param affectedForests the position where the rule can be applied,\n
-    /// which is a tuple of the two relevant terminal labels and a list of all forests where the two terminals
-    /// aren't siblings.
+    /// \param aLabel label of the a-node
+    /// \param cLabel label of the c-node
     ACBranchingRule(
         const std::shared_ptr<graph::Instance>& instance,
         const std::shared_ptr<Context>& context,
-        const std::tuple<unsigned int, unsigned int, std::list<std::shared_ptr<graph::Forest>>>& affectedForests);
+        unsigned int aLabel,
+        unsigned int cLabel);
 
     /// \brief applies rule
     /// \returns always \ref RuleReturnCode::Continue

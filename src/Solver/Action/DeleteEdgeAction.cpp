@@ -10,7 +10,12 @@ using namespace solver;
 solver::DeleteEdgeAction::DeleteEdgeAction(graph::Node* child, const std::shared_ptr<graph::Forest>& forest) :
         forest(forest),
         child(child)
-{}
+{
+    if (not child->parent)
+    {
+        throw std::invalid_argument("DeleteEdgeAction : Constructor : 'child' has no parent node");
+    }
+}
 
 void solver::DeleteEdgeAction::doAction()
 {

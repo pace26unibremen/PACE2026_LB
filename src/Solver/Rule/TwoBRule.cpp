@@ -17,12 +17,23 @@ solver::RuleReturnCode solver::TwoBRule::apply()
 
     for (const auto& f : *instance)
     {
-        const auto toCutNode1 = f->LabelToTerminal()[toCutLabel1];
-        const auto toCutNode2 = f->LabelToTerminal()[toCutLabel2];
-        changes.emplace(toCutNode1, f);
-        changes.top().doAction();
-        changes.emplace(toCutNode2, f);
-        changes.top().doAction();
+        const auto toCutNode1 = f->LabelToTerminal().at(toCutLabel1);
+        if (toCutNode1->parent)
+        {
+            if (context->protectedEdges.contains(toCutNode1))
+                return RuleReturnCode::CutBranch;
+            changes.emplace(toCutNode1, f);
+            changes.top().doAction();
+        }
+
+        const auto toCutNode2 = f->LabelToTerminal().at(toCutLabel2);
+        if (toCutNode2->parent)
+        {
+            if (context->protectedEdges.contains(toCutNode2))
+                return RuleReturnCode::CutBranch;
+            changes.emplace(toCutNode2, f);
+            changes.top().doAction();
+        }
     }
 
     return RuleReturnCode::Continue;
@@ -38,8 +49,6 @@ void solver::TwoBRule::unapply()
 
     while (not changes.empty())
     {
-        changes.top().undoAction();
-        changes.pop();
         changes.top().undoAction();
         changes.pop();
     }

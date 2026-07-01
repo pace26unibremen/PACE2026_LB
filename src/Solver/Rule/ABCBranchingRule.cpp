@@ -2,24 +2,17 @@
 #include "EqualPairReductionRule.hpp"
 
 #include <cassert>
-#include <list>
 
-// 1. label1
-// 2. label2
-// 3. map shared_ptr forest to the list of the cut-away subtrees on the path
-typedef std::tuple<
-            unsigned int,
-            unsigned int,
-            std::unordered_map<std::shared_ptr<graph::Forest>, std::list<graph::Node*>>>
-    cuts_type;
-
-solver::ABCBranchingRule::ABCBranchingRule(const std::shared_ptr<graph::Instance>& instance,
-                                                     const std::shared_ptr<Context>& context,
-                                                     const cuts_type& cuts) :
+solver::ABCBranchingRule::ABCBranchingRule(
+    const std::shared_ptr<graph::Instance>& instance,
+    const std::shared_ptr<Context>& context,
+    unsigned int aLabel,
+    unsigned int cLabel,
+    const std::list<std::pair<std::shared_ptr<graph::Forest>, std::list<graph::Node*>>>& forestWithBNodes) :
         AbstractBranchingRule(instance, context, 3),
-        label1(get<0>(cuts)),
-        label2(get<1>(cuts)),
-        forestToPathDeletions(get<2>(cuts))
+        aLabel(aLabel),
+        cLabel(cLabel),
+        forestWithBNodes(forestWithBNodes)
 {}
 
 solver::RuleReturnCode solver::ABCBranchingRule::apply()
@@ -39,72 +32,59 @@ solver::RuleReturnCode solver::ABCBranchingRule::apply()
     {
         case 3:
         {
-            for (const auto& f : *instance)
+            for (const auto& f: *instance)
             {
-                const auto t1 = f->LabelToTerminal()[label1];
-                if (t1->parent != nullptr)
-                {
-                    changes.emplace(t1, f);
-                    changes.top().doAction();
-                }
-                if (context->protectedEdges.contains(t1))
-                {
+                const auto aNode = f->LabelToTerminal().at(aLabel);
+                if (not aNode->parent)
+                    continue;
+                if (context->protectedEdges.contains(aNode))
                     return RuleReturnCode::CutBranch;
-                }
+                changes.emplace(aNode, f);
+                changes.top().doAction();
 
-                // we can protect edges to t2
+
+                // we can protect edges to cNode
                 // because we already tested all cases where t2 is cut in the other branches
-                const auto t2 = f->LabelToTerminal()[label2];
-                if (not context->protectedEdges.contains(t2))
+                const auto cNode = f->LabelToTerminal().at(cLabel);
+                if (not context->protectedEdges.contains(cNode))
                 {
-                    edgeProtections.emplace(t2);
-                    context->protectedEdges.emplace(t2);
+                    edgeProtections.emplace(cNode);
+                    context->protectedEdges.emplace(cNode);
                 }
-            }
 
+            }
             return RuleReturnCode::Continue;
         }
         case 2:
         {
             for (const auto& f : *instance)
             {
-                const auto t2 = f->LabelToTerminal()[label2];
-                if (t2->parent != nullptr)
-                {
-                    if (context->protectedEdges.contains(t2))
-                    {
-                        return RuleReturnCode::CutBranch;
-                    }
-                    changes.emplace(t2, f);
-                    changes.top().doAction();
-                }
+                const auto cNode = f->LabelToTerminal().at(cLabel);
+                if (not cNode->parent)
+                    continue;
+                if (context->protectedEdges.contains(cNode))
+                    return RuleReturnCode::CutBranch;
+                changes.emplace(cNode, f);
+                changes.top().doAction();
             }
             return RuleReturnCode::Continue;
         }
         case 1:
         {
-            auto pairSubtrees = std::unordered_map<std::shared_ptr<graph::Forest>, graph::Node*>();
-
-            for (const auto& f : *instance)
+            for (const auto& [f, bNodes] : forestWithBNodes)
             {
-                for (auto pathDel : this->forestToPathDeletions[f])
+                for (auto bNode : bNodes)
                 {
-                    if (context->protectedEdges.contains(pathDel))
-                    {
+                    if (context->protectedEdges.contains(bNode))
                         return RuleReturnCode::CutBranch;
-                    }
-                    changes.emplace(pathDel, f);
+                    changes.emplace(bNode, f);
                     changes.top().doAction();
-
                 }
-                auto parent = f->LabelToTerminal()[label1]->parent;
-                assert(parent == f->LabelToTerminal()[label2]->parent);
-                pairSubtrees.emplace(f,parent);
+                assert(f->LabelToTerminal()[aLabel]->parent == f->LabelToTerminal()[cLabel]->parent);
             }
 
-            auto nextRule = std::make_shared<solver::EqualPairReductionRule>(instance, context, pairSubtrees);
             nextRuleSuggestion = std::make_shared<std::list<std::shared_ptr<solver::AbstractRule>>>();
-            nextRuleSuggestion->push_back(nextRule);
+            nextRuleSuggestion->push_back(std::make_shared<EqualPairReductionRule>(instance, context, aLabel, cLabel));
 
             return RuleReturnCode::ContinueWithRuleSuggestion;
         }
@@ -141,25 +121,25 @@ std::shared_ptr<solver::AbstractRule>
 solver::ABCBranchingRule::isApplicable(const std::shared_ptr<graph::Instance>& instance,
                                             const std::shared_ptr<Context>& context)
 {
-    auto c = cuts_type();
-    get<0>(c) = 0;
-    get<1>(c) = 0;
+    unsigned int aLabel = 0;
+    unsigned int cLabel = 0;
+    auto forestWithBNodes = std::list<std::pair<std::shared_ptr<graph::Forest>, std::list<graph::Node*>>>();
 
-    auto f = instance->at(0);
-    for (const auto& [label, node] : f->LabelToTerminal())
+    const auto& f0 = instance->at(0);
+    for (const auto& [node, label] : f0->TerminalToLabel())
     {
-        if (node->sibling != nullptr and f->TerminalToLabel().contains(node->sibling))
+        if (node->sibling != nullptr and f0->TerminalToLabel().contains(node->sibling))
         {
-            get<0>(c) = label;
-            get<1>(c) = node->sibling->smallestTerminal();
-            get<2>(c).emplace(f, std::list<graph::Node*>());
+            aLabel = label;
+            cLabel = f0->TerminalToLabel().at(node->sibling);
             break;
         }
     }
 
-    if (get<0>(c) == 0)
+    if (aLabel == 0)
     {
         // we have a better rule for this case
+        // (CheckSingleVertexTreesRule, SingleVertexTreePropagationRule, EqualForestRule)
         return nullptr;
     }
 
@@ -168,34 +148,34 @@ solver::ABCBranchingRule::isApplicable(const std::shared_ptr<graph::Instance>& i
 
     for (unsigned int i = 1; i < instance->size(); i++)
     {
-        auto fi = instance->at(i);
-        auto t1 = fi->LabelToTerminal()[get<0>(c)];
-        auto t2 = fi->LabelToTerminal()[get<1>(c)];
-        auto root = fi->rootOf(t1);
-        if (not t2->hasSubsetTerminals(root))
+        const auto& fi = instance->at(i);
+        const auto& aNode = fi->LabelToTerminal().at(aLabel);
+        const auto& cNode = fi->LabelToTerminal().at(cLabel);
+        const auto& aRoot = fi->rootOf(aNode);
+        if (not cNode->hasSubsetTerminals(aRoot))
         {
-            // we have a better rule for this case
+            // we have a better rule for this case (AC BranchingRule)
             return nullptr;
         }
 
-        // moving upwards from t1 to lca - and collect all cut-away subtrees
-        auto cutAwaySubtrees = std::list<graph::Node*>();
+        // moving upwards from aNode to lca - and collect b-nodes
+        auto bNodes = std::list<graph::Node*>();
         graph::Node* lca;
-        graph::Node* it = t1;
+        graph::Node* it = aNode;
         while (true)
         {
             assert(it->parent != nullptr);
-            if (t2->hasSubsetTerminals(it->parent))
+            if (cNode->hasSubsetTerminals(it->parent))
             {
                 lca = it->parent;
                 break;
             }
-            cutAwaySubtrees.push_back(it->sibling);
+            bNodes.push_back(it->sibling);
             it = it->parent;
         }
 
-        // moving upwards from t2 to lca - and collect all cut-away subtrees
-        it = t2;
+        // moving upwards from cNode to lca - and collect b-nodes
+        it = cNode;
         while (true)
         {
             assert(it->parent != nullptr);
@@ -203,23 +183,23 @@ solver::ABCBranchingRule::isApplicable(const std::shared_ptr<graph::Instance>& i
             {
                 break;
             }
-            cutAwaySubtrees.push_back(it->sibling);
+            bNodes.push_back(it->sibling);
             it = it->parent;
         }
 
-        if (not cutAwaySubtrees.empty())
+        if (not bNodes.empty())
         {
-            // actually the case == 1 result in another, better branching rule
             existNonTrivialPath = true;
+            forestWithBNodes.emplace_back(fi, bNodes);
         }
-        get<2>(c).emplace(fi, std::move(cutAwaySubtrees));
     }
 
     if (not existNonTrivialPath)
     {
+        // we have a better rule for this case (EqualPairRule)
         return nullptr;
     }
-    return std::make_shared<ABCBranchingRule>(instance, context, c);
+    return std::make_shared<ABCBranchingRule>(instance, context, aLabel, cLabel, forestWithBNodes);
 }
 
 std::shared_ptr<std::list<std::shared_ptr<solver::AbstractRule>>> solver::ABCBranchingRule::NextRuleSuggestion()
@@ -234,8 +214,7 @@ std::string solver::ABCBranchingRule::name() const
 
 std::shared_ptr<solver::AbstractRule> solver::ABCBranchingRule::clone() const
 {
-    cuts_type c = {label1, label2, forestToPathDeletions};
-    auto clone = std::make_shared<ABCBranchingRule>(instance, context, c);
+    auto clone = std::make_shared<ABCBranchingRule>(instance, context, aLabel,cLabel, forestWithBNodes);
     clone->branch = isApplied ? branch - 1 : branch;
     return clone;
 }

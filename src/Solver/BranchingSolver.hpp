@@ -52,6 +52,9 @@ class BranchingSolver : public AbstractSolver
     /// \note Assumes that the current instance is a solution.
     void checkSolutionCandidate();
 
+    /// \brief initializes solver specific fields in the \ref Context object of the solver.
+    void initializeContext();
+
   public:
     /// \brief Constructor for a branching solver.
     /// \param instance to solve

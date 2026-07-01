@@ -12,6 +12,7 @@
 #include "Rule/EqualForestsRule.hpp"
 #include "Rule/EqualPairReductionRule.hpp"
 #include "Rule/ReverseBRule.hpp"
+#include "Rule/SiblingRuleFactory.hpp"
 #include "Rule/SingleVertexTreePropagationRule.hpp"
 #include "Rule/TwoBRule.hpp"
 
@@ -43,12 +44,7 @@ struct BranchingSolverConfiguration
         solver::CutBranchRule::isApplicable,
         solver::CheckSingleVertexTreesRule::isApplicable,
         solver::SingleVertexTreePropagationRule::isApplicable,
-        solver::EqualPairReductionRule::isApplicable,
-        solver::BRule::isApplicable,
-        solver::ReverseBRule::isApplicable,
-        solver::TwoBRule::isApplicable,
-        solver::ACBranchingRule::isApplicable,
-        solver::ABCBranchingRule::isApplicable,
+        solver::SiblingRuleFactory::allRules,
         solver::DebugAssertFalseRule::isApplicable
         };
 

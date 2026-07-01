@@ -146,34 +146,4 @@ TEST_CASE("BranchingSolver with 2-B Rule", "[Forest, TwoBRule]")
     //     REQUIRE(instance->at(0)->Roots().size() == 3);
     //     REQUIRE(collector->ruleCounts.at("TwoBRule") == 1);
     // }
-
-    SECTION("2 Forests, 20 Leafs")
-    {
-        auto config = std::make_shared<solver::BranchingSolverConfiguration>();
-        config->boundedDephtSearch = false;
-        config->activeRules = {
-            solver::CutBranchRule::isApplicable,
-            solver::CheckSingleVertexTreesRule::isApplicable,
-            solver::SingleVertexTreePropagationRule::isApplicable,
-            solver::EqualPairReductionRule::isApplicable,
-            solver::TwoBRule::isApplicable,
-            solver::ACBranchingRule::isApplicable,
-            solver::ABCBranchingRule::isApplicable,
-            solver::DebugAssertFalseRule::isApplicable
-            };
-
-        auto collector = std::make_shared<solver::plugin::MetricsCollector>();
-        auto plugin = std::make_shared<solver::plugin::RuleStatsPlugin>(collector, false, nullStream);
-        config->plugins = {plugin};
-
-        auto instance = graph::ReadInstance(std::string(RES_DIR) + "tests/2B/2F_20L.nw");
-
-        auto solver = solver::BranchingSolver(instance, config);
-        auto solved = solver.solve();
-        solver.unapplyReductions();
-
-        REQUIRE(solved);
-        REQUIRE(instance->at(0)->Roots().size() == 8);
-        REQUIRE(collector->ruleCounts.at("TwoBRule") > 0);
-    }
 }

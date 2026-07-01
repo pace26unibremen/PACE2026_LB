@@ -460,7 +460,7 @@ build_stride:
     - build-solver
     - build_stride
   variables:
-    RUN_BENCHMARK: "none"   # none, quick, full, exact, heuristic, lower-bound, all
+    RUN_BENCHMARK: "none"   # none, quick, full, exact, heuristic, lower-bound, tracks (all official tracks), all
     RUN_SUFFIX: "" # Can be used on manual runs to change the run name
     INSTANCES_LST: "all.lst"  # Or full
     SLURM_SCRIPT: "quick_run.slurm"
@@ -652,11 +652,11 @@ run_exact-track_benchmark:
     STRIDE_TIMEOUT: 1800
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_exact"
-    PACE_TRACK: "pipeline" # Use the "pipeline" track for now, as this includes all plugin metrics
+    PACE_TRACK: "exact" # Use the exact track config
   extends: .run_stride_benchmark_template
   rules:
     # If manually triggered from the web UI and the variable is set to exact or all, run the exact benchmark
-    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "exact" || $RUN_BENCHMARK == "all")'
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "exact" || $RUN_BENCHMARK == "tracks" || $RUN_BENCHMARK == "all")'
       when: on_success
     - !reference [ .release-rules, rules ]
     - when: never
@@ -692,11 +692,11 @@ run_heuristic-track_benchmark:
     STRIDE_TIMEOUT: 300
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_heuristic"
-    PACE_TRACK: "pipeline" # Use the "pipeline" track for now, as this includes all plugin metrics
+    PACE_TRACK: "heuristic" # Use the heuristic track config
   extends: .run_stride_benchmark_template
   rules:
     # If manually triggered from the web UI and the variable is set to heuristic or all, run the heuristic benchmark
-    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "heuristic" || $RUN_BENCHMARK == "all")'
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "heuristic" || $RUN_BENCHMARK == "tracks" || $RUN_BENCHMARK == "all")'
       when: on_success
     - !reference [ .release-rules, rules ]
     - when: never
@@ -708,11 +708,11 @@ run_lower-bound-track_benchmark:
     STRIDE_TIMEOUT: 600
     STRIDE_GRACE: 10
     STRIDE_RUN_NAME: "${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHORT_SHA}_lower-bound"
-    PACE_TRACK: "pipeline" # Use the "pipeline" track for now, as this includes all plugin metrics
+    PACE_TRACK: "lower-bound" # Use the lower-bound track config
   extends: .run_stride_benchmark_template
   rules:
     # If manually triggered from the web UI and the variable is set to lower-bound or all, run the lower-bound benchmark
-    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "lower-bound" || $RUN_BENCHMARK == "all")'
+    - if: '$CI_PIPELINE_SOURCE == "web" && ($RUN_BENCHMARK == "lower-bound" || $RUN_BENCHMARK == "tracks" || $RUN_BENCHMARK == "all")'
       when: on_success
     - !reference [ .release-rules, rules ]
     - when: never

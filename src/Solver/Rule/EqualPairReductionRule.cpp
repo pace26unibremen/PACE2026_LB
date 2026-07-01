@@ -4,14 +4,12 @@
 
 solver::EqualPairReductionRule::EqualPairReductionRule(const std::shared_ptr<graph::Instance>& instance,
                                      const std::shared_ptr<Context>& context,
-                                     const std::unordered_map<std::shared_ptr<graph::Forest>,
-                                     graph::Node*>& forestToSubtree) :
+                                     unsigned int aLabel,
+                                     unsigned int cLabel) :
     AbstractRule(instance,context, true),
-    forestToSubtree(forestToSubtree)
-{
-    this->changes = std::stack<solver::CollapseSubtreeAction>();
-}
-
+    aLabel(aLabel),
+    cLabel(cLabel)
+{}
 
 solver::RuleReturnCode solver::EqualPairReductionRule::apply()
 {
@@ -21,9 +19,10 @@ solver::RuleReturnCode solver::EqualPairReductionRule::apply()
     }
     isApplied = true;
 
-    for(const auto& [f,subtree] : forestToSubtree)
+    for(const auto& f : *instance)
     {
-        changes.emplace(subtree, f);
+        const auto& siblingRoot = f->LabelToTerminal().at(aLabel)->parent;
+        changes.emplace(siblingRoot, f);
         changes.top().doAction();
     }
 
@@ -52,41 +51,41 @@ solver::EqualPairReductionRule::isApplicable(const std::shared_ptr<graph::Instan
 {
     auto forestToSubtree = std::unordered_map<std::shared_ptr<graph::Forest>, graph::Node*>();
 
-    unsigned int label1 = 0;
-    unsigned int label2 = 0;
+    unsigned int aLabel = 0;
+    unsigned int cLabel = 0;
 
-    auto f = instance->at(0);
-    for (const auto& [label, node] : f->LabelToTerminal())
+    const auto& f0 = instance->at(0);
+    for (const auto& [node, label] : f0->TerminalToLabel())
     {
-        if (node->sibling != nullptr and f->TerminalToLabel().contains(node->sibling))
+        if (node->sibling != nullptr and f0->TerminalToLabel().contains(node->sibling))
         {
-            label1 = label;
-            label2 = node->sibling->smallestTerminal();
-            forestToSubtree.emplace(f, node->parent);
+            aLabel = label;
+            cLabel = f0->TerminalToLabel().at(node->sibling);
             break;
         }
     }
 
-    if (label1 == 0)
+    // check if we found a sibling pair in f0
+    if (aLabel == 0)
     {
         // we have a better rule for this case
+        // (CheckSingleVertexTreesRule, SingleVertexTreePropagationRule, EqualForestRule)
         return nullptr;
     }
 
     for (unsigned int i = 1; i < instance->size(); i++)
     {
-        auto fi = instance->at(i);
-        auto t1 = fi->LabelToTerminal()[label1];
-        auto t2 = fi->LabelToTerminal()[label2];
-        if ((t1->parent == nullptr) or (t1->parent != t2->parent))
+        const auto& fi = instance->at(i);
+        const auto& aNode = fi->LabelToTerminal().at(aLabel);
+        const auto& cNode = fi->LabelToTerminal().at(cLabel);
+        if (aNode->sibling != cNode)
         {
-            // we can not apply this rule for label1, label2
+            // we can not apply this rule for aLabel, cLabel
             return nullptr;
         }
-        forestToSubtree.emplace(fi, t1->parent);
     }
 
-    return std::make_shared<EqualPairReductionRule>(instance, context, forestToSubtree);
+    return std::make_shared<EqualPairReductionRule>(instance, context, aLabel, cLabel);
 }
 
 std::string solver::EqualPairReductionRule::name() const
@@ -96,5 +95,5 @@ std::string solver::EqualPairReductionRule::name() const
 
 std::shared_ptr<solver::AbstractRule> solver::EqualPairReductionRule::clone() const
 {
-    return std::make_shared<EqualPairReductionRule>(instance, context, forestToSubtree);
+    return std::make_shared<EqualPairReductionRule>(instance, context, aLabel, cLabel);
 }

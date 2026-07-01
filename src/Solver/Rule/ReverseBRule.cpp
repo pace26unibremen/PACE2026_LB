@@ -17,7 +17,11 @@ solver::RuleReturnCode solver::ReverseBRule::apply()
 
     for (const auto& f : *instance)
     {
-        const auto toCutNode = f->LabelToTerminal()[toCutLabel];
+        const auto toCutNode = f->LabelToTerminal().at(toCutLabel);
+        if (not toCutNode->parent)
+            continue;
+        if (context->protectedEdges.contains(toCutNode))
+            return RuleReturnCode::CutBranch;
         changes.emplace(toCutNode, f);
         changes.top().doAction();
     }

@@ -6,7 +6,7 @@
 solver::BranchingSolver::BranchingSolver(const std::shared_ptr<graph::Instance>& instance)
     : AbstractSolver(instance)
 {
-    this->context->branchingSolverConfiguration = this->configuration;
+    initializeContext();
 }
 
 solver::BranchingSolver::BranchingSolver(const std::shared_ptr<graph::Instance>& instance,
@@ -14,7 +14,7 @@ solver::BranchingSolver::BranchingSolver(const std::shared_ptr<graph::Instance>&
     AbstractSolver(instance),
     configuration(configuration)
 {
-    this->context->branchingSolverConfiguration = this->configuration;
+    initializeContext();
 }
 
 solver::BranchingSolver::BranchingSolver(const std::shared_ptr<graph::Instance>& instance,
@@ -24,7 +24,7 @@ solver::BranchingSolver::BranchingSolver(const std::shared_ptr<graph::Instance>&
     configuration(configuration),
     context(context)
 {
-    this->context->branchingSolverConfiguration = this->configuration;
+    initializeContext();
 }
 
 void solver::BranchingSolver::setTimeoutFlag(std::atomic<bool>* flag)
@@ -101,6 +101,30 @@ void solver::BranchingSolver::checkSolutionCandidate()
         auto branchCloneView = appliedRules | std::views::transform(
             [](const std::shared_ptr<AbstractRule>& r) { return r->clone(); });
         solutionBranch = {branchCloneView.begin(), branchCloneView.end()};
+    }
+}
+
+void solver::BranchingSolver::initializeContext()
+{
+    // set configuration
+    this->context->branchingSolverConfiguration = this->configuration;
+
+    // define label order
+    std::function<void(graph::Node*)> collectTerminalsDFS = [this, &collectTerminalsDFS](graph::Node* const & n)
+    {
+        if (n->leftChild)
+        {
+            collectTerminalsDFS(n->leftChild);
+            collectTerminalsDFS(n->rightChild);
+        }
+        else
+        {
+            context->heuristicLabelOrder.push_back(this->instance->at(0)->TerminalToLabel().at(n));
+        }
+    };
+    for (const auto& r : instance->at(0)->Roots())
+    {
+        collectTerminalsDFS(r);
     }
 }
 

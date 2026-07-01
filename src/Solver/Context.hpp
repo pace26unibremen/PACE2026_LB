@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <functional>
+#include <list>
 #include <memory>
 #include <unordered_set>
 
@@ -59,6 +60,11 @@ struct Context
             }
             return numberOfComponents;
         };
+
+
+    /// \brief A heuristic order of labels for solver to find applicable rules.
+    /// It should be initialized by the solver.
+    std::list<unsigned int> heuristicLabelOrder = {};
 };
 
 }  //namespace solver

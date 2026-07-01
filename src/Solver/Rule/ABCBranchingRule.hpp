@@ -23,16 +23,14 @@ namespace solver
 class ABCBranchingRule : public AbstractBranchingRule
 {
   protected:
+    /// \brief label of the a-nodes
+    unsigned int aLabel;
 
-    /// \brief first label
-    unsigned int label1;
+    /// \brief label of the c-nodes
+    unsigned int cLabel;
 
-    /// \brief second label
-    unsigned int label2;
-
-    /// \brief mapping for each forest to the list of nodes that can be cutted
-    /// (in the corresponding branch, where the both terminals are siblings).
-    std::unordered_map<std::shared_ptr<graph::Forest>, std::list<graph::Node*>> forestToPathDeletions;
+    /// \brief a list of forests with theirs b-nodes
+    std::list<std::pair<std::shared_ptr<graph::Forest>, std::list<graph::Node*>>> forestWithBNodes;
 
     /// \brief Stack of action that modify the instance,
     /// filled in the apply method and unfilled in the unapply method
@@ -49,14 +47,16 @@ class ABCBranchingRule : public AbstractBranchingRule
   public:
     /// \param instance the problem instance
     /// \param context information about the instance and the solver state
-    /// \param cuts the position where the rule can be applied,\n
-    /// which is a tuple of the two relevant terminal labels and a mapping for each forest to the list of nodes
-    /// that should be cutted, to make the both terminals siblings.
+    /// \param aLabel label of the a-nodes
+    /// \param cLabel label of the c-nodes
+    /// \param forestWithBNodes a list of forests with theirs b-nodes
     ABCBranchingRule(
         const std::shared_ptr<graph::Instance>& instance,
         const std::shared_ptr<Context>& context,
-        const std::tuple<unsigned int, unsigned int,
-                         std::unordered_map<std::shared_ptr<graph::Forest>, std::list<graph::Node*>>>& cuts);
+        unsigned int aLabel,
+        unsigned int cLabel,
+        const std::list<std::pair<std::shared_ptr<graph::Forest>, std::list<graph::Node*>>>& forestWithBNodes);
+
 
     /// \brief applies rule
     /// \returns two return codes are possible:

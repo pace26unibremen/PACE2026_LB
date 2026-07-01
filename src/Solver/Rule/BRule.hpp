@@ -18,7 +18,9 @@ class BRule : public AbstractRule
 {
   protected:
     /// \brief The Label of the B node that should be deleted
-    unsigned bLabel;
+    unsigned b1Label;
+    /// \brief The label of a potential alternative B node, can be 0
+    unsigned b2Label;
     /// \brief A stack entailing all edge deletion actions between the B-Nodes and their respective forests
     std::stack<DeleteEdgeAction> changes;
 
@@ -27,8 +29,12 @@ class BRule : public AbstractRule
     /// \see Whidden et al. 2013
     /// \param instance The instance which is to be analyzed
     /// \param context Information storage for the branches
-    /// \param bLabel The label of the B node
-    BRule(const std::shared_ptr<graph::Instance>& instance, const std::shared_ptr<Context>& context, unsigned bLabel);
+    /// \param b1Label The label of the B node
+    /// \param b2Label The label of a potential alternative B node, can be 0.
+    BRule(const std::shared_ptr<graph::Instance>& instance,
+          const std::shared_ptr<Context>& context,
+          unsigned int b1Label,
+          unsigned int b2Label);
 
     /// \brief Applies the B-Rule onto all forests within the instance
     RuleReturnCode apply() override;

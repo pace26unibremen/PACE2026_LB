@@ -19,21 +19,24 @@ namespace solver
 class EqualPairReductionRule : public AbstractRule
 {
   protected:
-    /// \brief A mapping of each forest to the subtree in this forest that can be collapsed
-    std::unordered_map<std::shared_ptr<graph::Forest>, graph::Node*> forestToSubtree;
-
     /// \brief Stack of action that modify the instance,
     /// filled in the apply method and unfilled in the unapply method
     std::stack<CollapseSubtreeAction> changes = std::stack<solver::CollapseSubtreeAction>();
 
-  public:
+    /// \brief label of one sibling nodes
+    unsigned int aLabel;
+    /// \brief label of the other sibling node
+    unsigned int cLabel;
+
+public:
     /// \param instance the problem instance
     /// \param context information about the instance and the solver state
-    /// \param forestToSubtree the position where the rule can be applied,\n
-    /// which is a mapping of each forest to the subtree in this forest that can be collapsed
+    /// \param aLabel label of one sibling nodes
+    /// \param cLabel label of the other sibling node
     EqualPairReductionRule(const std::shared_ptr<graph::Instance>& instance,
                   const std::shared_ptr<Context>& context,
-                  const std::unordered_map<std::shared_ptr<graph::Forest>, graph::Node*>& forestToSubtree);
+                  unsigned int aLabel,
+                  unsigned int cLabel);
 
     /// \brief applies rule
     /// \returns always \ref RuleReturnCode::Continue
