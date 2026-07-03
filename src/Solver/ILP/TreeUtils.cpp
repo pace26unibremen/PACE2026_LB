@@ -66,27 +66,13 @@ std::unordered_map<const graph::Node*, int> buildNodeToIndexMap(const graph::For
     return nodeToIndex;
 }
 
-
-// Auxiliary recursive Function for DFS of the forest.
-void recBuildIndexToNodeMap(graph::Node* & n, std::unordered_map<int, graph::Node*> & indexToNode, int &i)
-{
-    if (!n) return;
-    indexToNode[i++] = n;
-
-    recBuildIndexToNodeMap(n->leftChild, indexToNode, i);
-    recBuildIndexToNodeMap(n->rightChild, indexToNode, i);
-}
-
 std::unordered_map<int, graph::Node*> buildIndexToNodeMap(graph::Forest& forest)
 {
-    std::unordered_map<int, graph::Node*> indexToNode;
-    int i = 0;
-
-    for (auto& r : forest.Roots())
-    {
-       recBuildIndexToNodeMap(r, indexToNode, i);
-    }
-
+    auto indexToNode = std::unordered_map<int, graph::Node*>();
+    auto nodeToIndex = buildNodeToIndexMap(forest);
+    
+    for (auto& [node, label] : nodeToIndex)
+        (indexToNode)[label] = const_cast<graph::Node*>(node);
     return indexToNode;
 }
 

@@ -11,8 +11,10 @@
 #include "ILPModel.hpp"
 
 #include <unordered_map>
+#include <tuple>
 #include <vector>
 #include <memory>
+#include <array>
 
 namespace solver {
 
@@ -20,6 +22,11 @@ namespace solver {
 enum class MaxSATSolverType {
     UWrMaxSAT,
     EvalMaxSAT
+};
+
+enum class ConstraintCheckType {
+    Linear,
+    All,
 };
 
 class IncrementalMAFSolver : public AbstractSolver
@@ -34,7 +41,12 @@ class IncrementalMAFSolver : public AbstractSolver
     };
 
     /// \brief Max Number of Constraints added to Solver in each round.
-    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 50000;
+    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 1000;
+    static constexpr int MIN_CONSTRAINTS_PER_ROUND = 100;
+    static constexpr std::array<ConstraintCheckType,3> ALL_CHECK_TYPES= {
+        ConstraintCheckType::Linear,
+        ConstraintCheckType::All
+    };
 
     private:
         /// \brief Context information about the instance and the solver state
@@ -64,8 +76,8 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \note Must be reinstantiated if forest_1 changes.
         /// \note This is needed, as the reduction solver doesn't update the map.
         std::unordered_map<unsigned int, graph::Node*> labelToTerminal1;
-        /// \brief Precomputed LabeltoTerminal Map for forest_1.
-        /// \note Must be reinstantiated if forest_1 changes.
+        /// \brief Precomputed LabeltoTerminal Map for forest_2.
+        /// \note Must be reinstantiated if forest_2 changes.
         /// \note This is needed, as the reduction solver doesn't update the map.
         std::unordered_map<unsigned int, graph::Node*> labelToTerminal2;
 
@@ -75,6 +87,10 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \brief Precomputed LCA table for forest_2.
         /// \note Must be reinstantiated if forest_2 changes.
         std::shared_ptr<cluster::LeastCommonAncestor> lca2;
+
+        /// \brief stores all applied rules of the current branch in the order in which they were applied.
+        ///std::list<std::shared_ptr<DeleteEdgeAction>> appliedActions = std::list<std::shared_ptr<DeleteEdgeAction>>();
+
 
 
         /// \brief Creates the concrete ILP solver based on solverType.
@@ -118,7 +134,7 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \return Updated number of constraints in round
         /// \note If there are unsatisfied triple constraints, these will be directly added to the solver...
         [[nodiscard]]
-        int checkTripleConstraints(int n_constraints, std::vector<unsigned int> labels, bool linear,
+        int checkTripleConstraints(int n_constraints, std::vector<unsigned int> labels, ConstraintCheckType type,
                                     std::shared_ptr<graph::Forest>& mafSolution,
                                     std::shared_ptr<cluster::LeastCommonAncestor>& lca_sol,
                                     std::unordered_map<const graph::Node*, int>& nodeToIndex_sol,
@@ -130,10 +146,11 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \param mafSolution Current Solution (MAF).
         /// \param lca_sol Precomputed LCA table for current solution.
         /// \param nodeToIndex_sol Precomputed Node <-> VarIndex Map for current solution.
+        /// \param labelToTerminal_sol Precomputed LabeltoTerminal Map for current solution.
         /// \return Updated number of constraints in round
         /// \note If there are unsatisfied triple constraints, these will be directly added to the solver...
         [[nodiscard]]                         
-        int checkPathPairConstraints(int n_constraints, bool linear,
+        int checkPathPairConstraints(int n_constraints, ConstraintCheckType type,
                                                     std::shared_ptr<graph::Forest>& mafSolution,
                                                     std::shared_ptr<cluster::LeastCommonAncestor>& lca_sol,
                                                     std::unordered_map<const graph::Node*, int>& nodeToIndex_sol,
@@ -151,6 +168,9 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \param orig Decides wether Solution can be applied to original instance, instead of copy.
         /// \return A pointer to the new MAF Solution.
         std::shared_ptr<graph::Forest> reconstructMAF(std::vector<int> cutEdges, bool orig);
+        
+        /// \brief Reconstructs Forest_1, if solution is not a true MAF.
+        /// void restoreForest();
 
         /// \brief Generates all leaf pairs across subtrees of current solution.
         /// \param mafSolution Current solution.

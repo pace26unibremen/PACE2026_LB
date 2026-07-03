@@ -10,3 +10,4 @@ LocalConfig.cmake
 debug/
 incremental/
 Launch*
+*.sh

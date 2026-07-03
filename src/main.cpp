@@ -3,6 +3,7 @@
 #include "Graph/Instance.hpp"
 
 #include <iostream>
+#include <sstream>
 
 using namespace std;
 using namespace graph;
