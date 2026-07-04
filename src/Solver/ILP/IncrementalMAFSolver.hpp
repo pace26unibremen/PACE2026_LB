@@ -26,7 +26,7 @@ enum class MaxSATSolverType {
 
 enum class ConstraintCheckType {
     Linear,
-    LinearCovering,
+    Coverage,
     All,
 };
 
@@ -40,14 +40,10 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \brief Represents the right (second) leaf of the pair.
         unsigned int r;
     };
-
-    /// \brief Max Number of Constraints added to Solver in each round.
-    static constexpr int MAX_CONSTRAINTS_PER_ROUND = 50000;
-    static constexpr int MIN_CONSTRAINTS_PER_ROUND = 100;
     
     static constexpr std::array<ConstraintCheckType,3> ALL_CHECK_TYPES= {
         ConstraintCheckType::Linear,
-        ConstraintCheckType::LinearCovering,
+        ConstraintCheckType::Coverage,
         ConstraintCheckType::All
     };
 
@@ -73,6 +69,10 @@ class IncrementalMAFSolver : public AbstractSolver
         std::unordered_set<std::string> addedTripleConstraints;
         /// \brief Set for checking if pathpair-constraints are already added to solver.
         std::unordered_set<std::string> addedPathPairConstraints;
+
+        /// \brief Max Number of Constraints added to Solver in each round.
+        int MAX_CONSTRAINTS_PER_ROUND;
+        int MIN_CONSTRAINTS_PER_ROUND;
 
         /// \brief stores all applied rules of the current branch in the order in which they were applied.
         ///std::list<std::shared_ptr<DeleteEdgeAction>> appliedActions = std::list<std::shared_ptr<DeleteEdgeAction>>();
@@ -125,7 +125,9 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \return Updated number of constraints in round
         /// \note If there are unsatisfied triple constraints, these will be directly added to the solver...
         [[nodiscard]]                         
-        int checkPathPairConstraints(int n_constraints, ConstraintCheckType type, const ForestData& forestData_sol);
+        int checkPathPairConstraints(int n_constraints, ConstraintCheckType type, 
+                                     const std::vector<IncrementalMAFSolver::LeafPair>& pairs,
+                                     const ForestData& forestData_sol);
         
 
         /// \brief Extracts cut edges from a solution.
@@ -148,6 +150,12 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \return A set of LeafPairs for current solution.
         [[nodiscard]]
         std::vector<LeafPair> generateLeafPairs(const std::shared_ptr<graph::Forest>& mafSolution);
+
+        /// \brief Generates all leaf pairs for a subtree of current solution.
+        /// \param rootNode Current solution.
+        /// \return A set of LeafPairs for current solution.
+        [[nodiscard]]
+        std::vector<LeafPair> generateLeafPairs(const graph::Node* rootNode, const std::shared_ptr<graph::Forest>& mafSolution);
         
         /// \brief Calculates the leafs of a Subtree of the MAF, given the root Node of the subtree.
         /// \param subtreeRoot Root Node of subtree.
