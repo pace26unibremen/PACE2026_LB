@@ -3,12 +3,15 @@
 
 #include "../AbstractIncrementalSolver.hpp"
 #include "../ILPModel.hpp"
+#include "chrono"
 
 namespace solver {
 
 class IncrUWrMaxSATSolver : public AbstractIncrementalSolver
 {
 public:
+
+
     IncrUWrMaxSATSolver() = default;
     ~IncrUWrMaxSATSolver() override;
 
@@ -18,7 +21,13 @@ public:
     void addAssumptions(const std::vector<double>& solValues) override;
     ILPSolution solve(int numVars) override;
 
+    void stampSolver(double seconds);
+
+
 private:
+    std::chrono::steady_clock::time_point future;
+
+
     void* solver_ipamir = nullptr;
 
 }; // class IncrUWrMaxSatSolver

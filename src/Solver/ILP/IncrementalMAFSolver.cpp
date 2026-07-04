@@ -133,7 +133,9 @@ void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
     }
 
     solver->initSolver(forestData_1.nodeToIndex.size());
-    
+    solver->stampSolver(timeOutDelay);
+
+
     // Add Soft Constraints...
     if (context)
     {
@@ -637,5 +639,13 @@ std::vector<unsigned int> IncrementalMAFSolver::getSubtreeLabels(const graph::No
     return labels;
 
 }
+
+
+void IncrementalMAFSolver::setTimeOut(double time)
+{
+    timeOutDelay = time;
+}
+
+
 
 }  // namespace solver
