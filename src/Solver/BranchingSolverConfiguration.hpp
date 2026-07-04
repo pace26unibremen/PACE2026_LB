@@ -15,6 +15,7 @@
 #include "Rule/SiblingRuleFactory.hpp"
 #include "Rule/SingleVertexTreePropagationRule.hpp"
 #include "Rule/TwoBRule.hpp"
+#include "Rule/ChainReductionRule.hpp"
 
 #include <functional>
 #include <memory>
@@ -52,6 +53,42 @@ struct BranchingSolverConfiguration
     /// Add plugins here to observe solver events — see \ref solver::plugin::AbstractPlugin.
     /// Example: plugins.push_back(std::make_shared<solver::plugin::VisualizationPlugin>("debugOutput/dot"));
     std::vector<std::shared_ptr<solver::plugin::AbstractPlugin>> plugins = {};
+
+    /// \brief Preset for the approximation solver, valid for any number of trees.
+    ///
+    /// Runs a single linear path (none of these rules is an \ref AbstractBranchingRule) that
+    /// constructs a valid agreement forest:
+    ///  - \ref CheckSingleVertexTreesRule — termination check.
+    ///  - \ref SingleVertexTreePropagationRule — free: mirror a leaf that became a singleton in
+    ///    one forest into the others (paper Case 1).
+    ///  - \ref EqualPairReductionRule — free: contract a cherry common to all forests (Case 2).
+    ///  - \ref ForcedCherryCutRule — the sharp Whidden-Zeh 3-approximation cut, but only defined
+    ///    for \c t == 2 (returns null otherwise). Kept first so two-tree instances get the better
+    ///    ratio.
+    ///  - \ref GreedyCherryCutRule — the general-\c t fallback: when a cherry conflicts, isolate one
+    ///    of its leaves in every forest. No proven ratio, but always valid, so it makes the
+    ///    approximation work for \c t > 2 (where ForcedCherryCutRule does not apply).
+    ///  - \ref DebugAssertFalseRule — safety net; if it fires, a reachable state is uncovered by
+    ///    the rules above (a real bug), because every forest with >=2 leaves has a cherry that is
+    ///    either common (EqualPair) or conflicting (Forced/Greedy).
+    ///
+    /// Deliberately excludes SubtreeReductionRule/ChainReductionRule from this in-loop list; they
+    /// are pure batching speed-ups applied once upfront in the pipeline's Reduction stage instead.
+    static BranchingSolverConfiguration approximationRules()
+    {
+        BranchingSolverConfiguration c;
+        c.boundedDephtSearch = false;
+        c.activeRules = {
+            solver::CheckSingleVertexTreesRule::isApplicable,
+            solver::SingleVertexTreePropagationRule::isApplicable,
+            // One dispatcher replaces EqualPairReductionRule + ForcedCherryCutRule + GreedyCherryCutRule:
+            // it finds forest 0's cherry once, checks it against all forests once, and returns the right
+            // rule — instead of three rules each independently re-scanning for the same cherry.
+            solver::SiblingRuleFactory::approximationRule,
+            solver::DebugAssertFalseRule::isApplicable
+        };
+        return c;
+    }
 };
 
 } // namespace solver

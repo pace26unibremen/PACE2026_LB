@@ -86,6 +86,24 @@ class BranchingSolver : public AbstractSolver
     /// \brief Getter for the Context.
     const std::shared_ptr<solver::Context>& GetContext();
 
+    /// \brief The rules (clones) that make up the best solution found, in application order.
+    /// Empty if no solution was found. Valid after \ref solve() returns.
+    [[nodiscard]]
+    const std::list<std::shared_ptr<AbstractRule>>& SolutionBranch() const { return solutionBranch; }
+
+    /// \brief Pre-seed the search with a known solution (e.g. from the approximation): sets the
+    /// incumbent weight so \ref solver::CutBranchRule prunes from the first node, and stores \p branch
+    /// as the current best solution. If the search never beats it, \ref solve() re-applies \p branch at
+    /// the end and returns it — which also means the solver can stop on SIGTERM even before its own
+    /// first leaf, because it already has a solution to emit. The rules in \p branch must be valid,
+    /// unapplied rules for this solver's instance (rolled back off it via \ref unapplySolutionBranch).
+    void seedSolution(std::list<std::shared_ptr<AbstractRule>> branch, float weight);
+
+    /// \brief Unapply the stored solution branch in reverse application order and clear it, restoring
+    /// the instance to the state it had before that branch was applied. Used to roll a finished
+    /// approximation run off the (shared) instance while keeping its branch for reuse.
+    void unapplySolutionBranch();
+
     /// \brief Registers a timeout flag. When the flag is set to true (e.g. from a signal handler),
     /// solve() stops at the next branch rollback and returns the best solution found so far.
     /// Pass nullptr to disable. Returns false if no solution existed when the flag fired.

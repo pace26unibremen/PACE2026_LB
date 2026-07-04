@@ -158,16 +158,17 @@ void solver::ClusterSolver::sortClusters()
 
 void solver::ClusterSolver::mergeCluster()
 {
-    // we only need the first forest
-    instance->erase(instance->begin() + 1, instance->end());
-    instance->at(0)->Roots().clear();
-    for (auto& c : cluster)
+    for (unsigned int i = 0; i < instance->size(); i++)
     {
-        instance->at(0)->Roots().insert(instance->at(0)->Roots().end(), c->at(0)->Roots().begin(),
-                                        c->at(0)->Roots().end());
+        instance->at(i)->Roots().clear();
+        for (auto& c : cluster)
+        {
+            instance->at(i)->Roots().insert(instance->at(i)->Roots().end(), c->at(i)->Roots().begin(),
+                                            c->at(i)->Roots().end());
+        }
+        std::ranges::sort(instance->at(i)->Roots(),
+                          [](const graph::Node* r1, const graph::Node* r2) { return r1->hasSmallestTerminal(r2); });
     }
-    std::ranges::sort(instance->at(0)->Roots(),
-                      [](const graph::Node* r1, const graph::Node* r2) { return r1->hasSmallestTerminal(r2); });
 }
 
 void solver::ClusterSolver::coupleSubtrees()

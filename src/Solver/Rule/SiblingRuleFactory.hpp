@@ -59,6 +59,17 @@ class SiblingRuleFactory
     /// \returns shared pointer to an instance of the best applicable rule
     static std::shared_ptr<AbstractRule> allRules(const std::shared_ptr<graph::Instance>& instance,
                                                   const std::shared_ptr<solver::Context>& context);
+
+    /// \brief Single-scan dispatcher for the approximation solver (any number of trees). Reuses the
+    /// sibling-pair selection (\ref getSiblings) and checks it against all forests once: if forest 0's
+    /// cherry is a cherry in every forest it returns \ref EqualPairReductionRule (contract); otherwise
+    /// \ref ForcedCherryCutRule (two trees) or \ref GreedyCherryCutRule (t > 2) (cut). Returns nullptr
+    /// if forest 0 has no sibling pair (the single-vertex rules handle that).
+    /// \param instance on which the rule should be applied
+    /// \param context contains additional information to the instance and the solver state
+    /// \returns shared pointer to the applicable approximation rule, or nullptr
+    static std::shared_ptr<AbstractRule> approximationRule(const std::shared_ptr<graph::Instance>& instance,
+                                                           const std::shared_ptr<solver::Context>& context);
 };
 
 }  //namespace solver

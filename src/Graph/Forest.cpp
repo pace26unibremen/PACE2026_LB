@@ -510,6 +510,12 @@ void Forest::sortChildrenAndCollectTerminals()
             subtreePtr->subtreeTerminals[(label - 1) / 64] = ((uint64_t) 1 << (label -1) % 64);
             return label;
         }
+        // KNOWN BUG: unconditionally recurses into leftChild/rightChild. A Newick input
+        // containing a unary node (a "(...)" clade with only one child, typically from a
+        // redundant wrapping paren, e.g. "((c,(d,e)))") leaves one child null here, and the
+        // recursive call segfaults. Not fixed as of 2026-07-02 (found while implementing the
+        // approximation solver on branch approximation-solver / task-2 review) — needs a
+        // null/arity check, or the Newick parser needs to reject/collapse unary clades.
         unsigned int firstMinLabel = orderSubtree(subtreePtr->leftChild);
         unsigned int secondMinLabel = orderSubtree(subtreePtr->rightChild);
         if (firstMinLabel > secondMinLabel)

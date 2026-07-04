@@ -1,160 +1,220 @@
-//
-// Created by kaufm on 11.12.2025.
-//
+#include "ChainReductionRule.hpp"
+#include <ranges>
 
-#include "ChainReductionRule.h"
+solver::ChainReductionRule::ChainReductionRule(const std::shared_ptr<graph::Instance>& instance,
+                                               const std::shared_ptr<Context>& context,
+                                               const std::list<std::pair<unsigned int, unsigned>>& reducedChains) :
+        AbstractRule(instance, context, true),
+        reducedChains(reducedChains)
+{}
 
-#include <algorithm>
-#include <iostream>
-#include <list>
-#include <string>
-
-// TODO: Refactor node indices to node pointers when the rule is implemented
-
-solver::ChainReductionRule::ChainReductionRule() : AbstractRule(nullptr,nullptr,true)
+solver::RuleReturnCode solver::ChainReductionRule::apply()
 {
-    //Copying of the Trees maybe irrelevant when doing this without const params. Not sure.
+    if (this->isApplied)
+    {
+        throw std::invalid_argument("ChainReductionRule : apply : rule is already applied");
+    }
+    isApplied = true;
 
+    for (const auto& [lower, upper] : reducedChains)
+    {
+        for (const auto& forest : *instance)
+        {
+            changes.emplace(lower,upper,forest);
+            changes.top().doAction();
+        }
 
+    }
+
+    return RuleReturnCode::Continue;
 }
 
-//Wie will man es machen?
-//von Anzahl der Nodes bis 4...
-// Zuerster Check: Gibt es zwei Nodes, welche Eltern teilen
-// Dann: Aus den verbleibenen Nodes: Für die verbleibenen Nodes: Existiert bei jeder Runde ein Knoten, welcher der Parent
-// des Parents der beiden knoten ist?
-
-// int sizeOfSharedNodes(std::vector<graph::Node> t1Node, std::vector<graph::Node> t2Node)
-// {
-//     int highestSize = 0;
-//
-//     for (unsigned int i = 0; i < t1Node.size();  i++)
-//     {
-//         for (unsigned int j = 0; j < t2Node.size(); j++)
-//         {
-//             // if () WARTE BIS ADDRESSIERUNG DER NODES VERBESSERT WIRD
-//             // {
-//             //     highestSize++;
-//             // }
-//         }
-//     }
-//
-//     return highestSize;
-// }
-//Forest stores all vertex with a nummer label. TerminalIndexToLabel orders the index of the leafs/terminals to the
-//label, LabelToTerminalIndex the opposite.
-
-
-//Chain reduction. For n ≥ 4, let C = (x1, x2, . . . , xn) be a
-//maximal n-chain that is common to T and T' . Then set
-//S = T |X \ {x4, x5, . . . , xn} and S' = T'|X \ {x4, x5, . . . , xn}.
-
-//Chain def:Let T be a rooted phylogenetic X-tree, and let C =
-//(x1, x2, . . . , xn) be a sequence of elements in X with n ≥ 2.
-//We say that C is an n-chain (or short chain) of T if the
-//parent of x1 coincides with the parent of x2 or the parent
-//of x2 is the parent of the parent of x1, and, for each
-//i ∈ {3, 4, . . . , n}, the parent of xi is the parent of the parent
-//of xi−1.
-
-//SO: First step: Identify Chains of n>= 4 that are present in T and T'.
-//Second Step: Apply the reduction to both Forests for each chain.
-
-//First step: Go through all element pairs with size n >= 4 on both T and T'
-// IFF a Chain that is common in T and T' is found, then apply the subtree/chain deletion by removing the subtree.
-// (I think that atm removing the edge between the parent of the node of the to the removed subtree/chain is the way to
-// do that)
-// Do this for all possible pairs and either quit the func if both trees were accessible during execution of func, or
-// return both now reduced trees.
-
-
-//Func to return all combinations
-
-//we need to do this, since if a node is unique to only one, then it can't be removed.
-
-void ChainReductionExecution(std::shared_ptr<graph::Forest>& T1, std::shared_ptr<graph::Forest>& T2)
+void solver::ChainReductionRule::unapply()
 {
-    // int size;
-    // if (T1->Nodes().size() > T2->Nodes().size())
-    // {
-    //     size = T1->Nodes().size();
-    // }
-    // else
-    // {
-    //     size = T2->Nodes().size();
-    // }
-    //
-    // //Fetch Nodes
-    // std::vector<graph::Node> treeOneNodes = T1->Nodes();
-    // std::vector<graph::Node> treeTwoNodes = T2->Nodes();
-    //
-    // // //Fetch Terminals
-    // // std::unordered_map<int,unsigned int> termIndexTreeOne = T1->Terminals();
-    // // std::unordered_map<int,unsigned int> termIndexTreeTwo = T2->Terminals();
-    //
-    // for (int currentNodeIndex = 0; currentNodeIndex < size; currentNodeIndex++)
-    // {
-    //     //x2 für derzeitiges x1 in T1
-    //     int siblingNode = treeOneNodes.at(currentNodeIndex).siblingIndex;
-    //
-    //
-    //     //If x2 of x1 is equal across T1 and T2, and Parent of x2 equal in both trees, and parent of x1 equal in both
-    //     //then 3-common-chain
-    //     if (siblingNode == treeTwoNodes.at(currentNodeIndex).siblingIndex &&
-    //         treeOneNodes.at(siblingNode).parentIndex == treeTwoNodes.at(siblingNode).parentIndex &&
-    //         treeOneNodes.at(currentNodeIndex).parentIndex == treeTwoNodes.at(currentNodeIndex).parentIndex)
-    //     {
-    //         //x3
-    //         int parentNode = treeOneNodes.at(currentNodeIndex).parentIndex;
-    //
-    //
-    //         //3-common-chain
-    //         std::list commonChainNodes = {currentNodeIndex, siblingNode, parentNode};
-    //
-    //         bool isCurrentParentEqual = true;
-    //
-    //         //Suche alle weitere gleichen Vaterknoten.
-    //         while (isCurrentParentEqual)
-    //         {
-    //             //Parents of current parent node in chain
-    //             int parentNodeT1 = treeOneNodes.at(parentNode).parentIndex;
-    //             int parentNodeT2 = treeTwoNodes.at(parentNode).parentIndex;
-    //
-    //             if (parentNodeT1 == parentNodeT2)
-    //             {
-    //                 //Not a root check
-    //                 if (parentNodeT1 != -1 && parentNodeT2 != -1)
-    //                 {
-    //                     commonChainNodes.push_back(parentNodeT1);
-    //                     parentNode = treeOneNodes.at(parentNode).parentIndex;
-    //                 }
-    //                 else
-    //                 {
-    //                     isCurrentParentEqual = false;
-    //                 }
-    //             }
-    //             else
-    //             {
-    //
-    //
-    //             }
-    //         }  //Das Terminiert irgendwann, keine sorge.
-    //
-    //         //Falls n>=4...
-    //         if (commonChainNodes.size() >= 4)
-    //         {
-    //
-    //         }
-    //
-    //
-    //     }
-    // }
+    if (not this->isApplied)
+    {
+        throw std::invalid_argument("ChainReductionRule : unapply : rule is not applied");
+    }
+    isApplied = false;
 
-    // int maximumSharedNodes = sizeOfSharedNodes(treeOneNodes,treeTwoNodes);
-
-
-    //Enumerate over all
-
+    while (!changes.empty())
+    {
+        changes.top().undoAction();
+        changes.pop();
+    }
 }
 
+std::shared_ptr<solver::AbstractRule>
+solver::ChainReductionRule::isApplicable(const std::shared_ptr<graph::Instance>& instance,
+                                         const std::shared_ptr<Context>& context)
+{
+    // S. Kelk et al. states that for multiple tree s
+    // we can shorten chains to r := min{max{k, 3}, t + 1}
+    // where t is the number of trees and k is solution size.
+    // Since we don't know the solution size,
+    // we use t+1 as upper bound on r.
+    //
+    // TODO we can also use our current upper bound on k
 
+    const unsigned int lengthReducedChain = instance->size() + 1;
+
+    // all labels that we already visisted
+    std::unordered_set<unsigned int> visitedLabels;
+
+    // maps labels, which are the starts point of a chains to their chains.
+    // a chain is represented as a list of labels.
+    std::unordered_map<unsigned int, std::list<unsigned int>> startToChain;
+
+    // we iterate over labels, a try to build chains with the current label as starting point
+    for (const auto& label : instance->at(0)->TerminalToLabel() | std::views::values)
+    {
+        if (visitedLabels.contains(label))
+            continue;
+
+        // insert label with a very trivial chain, that consist only of 'label'
+        visitedLabels.insert(label);
+        startToChain.insert({label, {label}});
+
+        // For now, we exclude the case where a chain starts with a sibling pair and concentrate
+        // on the case, where the chain starts in the middle of the forests.
+        // But, if we would have a sibling pair with in at least one forest
+        // then several cases are relevant:
+        //
+        // the sibling pair (l1,l2), with uncle l3
+        //     ┌──┴──┐
+        //   ┌─┴─┐   l3
+        //  l1   l2
+        //
+        // case: another sibling pair  | case: chain with l1 /2       |  case: chain l1/l2 and uncle
+        //                             |                              |        as sibling pair
+        //       ┌──┴──┐               |     ┌──┴──┐                  |        ┌──┴──┐
+        //     ┌─┴─┐   x               |   ┌─┴─┐   l3                 |    ┌───┴─┐   x
+        //    l1   l2                  | ┌─┴┐  l1/l2                  |  l1/l2   l3
+        // -> equal pair rule          |  -> chain (l1, l3, ...)      |  -> chain (l1, l3, ...)
+        //
+        //  case: chain starting with both
+        //        ┌──┴──┐
+        //     ┌──┴──┐   l3
+        //   ┌─┴─┐   l1/l2
+        // ┌─┴┐  l2/l1
+        // -> chain (l1, l2, l3, ...)
+        //
+        // in some of these subvariants of these cases we should also consider B-, RB- and 2B-Rule
+
+        // As said before, for now, we exclude the case where a chain starts with a sibling pair
+        bool siblingStart = false;
+        for (const auto& forest : *instance)
+        {
+            graph::Node* chainStart = forest->LabelToTerminal().at(label);
+            if (forest->TerminalToLabel().contains(chainStart->sibling))
+            {
+                siblingStart = true;
+            }
+        }
+        if (siblingStart)
+            continue;
+
+        // we try know to traverse the tree upwards and collect new chain elements (labels)
+        unsigned int currentChainElement = label;
+        while (true)
+        {
+            bool ongoingChain = true;
+            unsigned int nextChainElement = 0;
+
+            //     ┌───┴─────┐
+            //   ┌─┴─┐      nextChainElement
+            //    chainElement
+
+            // we have to check the nextChainElement for each forests in our instance
+            for (const auto& forest : *instance)
+            {
+                graph::Node* chainElementNode = forest->LabelToTerminal().at(currentChainElement);
+
+                // for an ongoing chain we need an uncle
+                // and the parent of the uncle shouldn't be a root node
+                if (not chainElementNode->parent or                   // guard: we have parent
+                    not chainElementNode->parent->sibling or          // guard: the parent has a sibling (uncle)
+                    not chainElementNode->parent->parent->parent)     // guard: the grandparent is not a root
+                {
+                    ongoingChain = false;
+                    break;
+                }
+
+                // the uncle must be a terminal
+                auto uncle = chainElementNode->parent->sibling;
+                if (not forest->TerminalToLabel().contains(uncle))
+                {
+                    ongoingChain = false;
+                    break;
+                }
+
+                // the uncle must have the same label as the corresponding uncles in the other forests
+                unsigned int uncleLabel = forest->TerminalToLabel().at(uncle);
+                if (nextChainElement == 0)
+                {
+                    nextChainElement = uncleLabel;
+                }
+                else if (nextChainElement != uncleLabel)
+                {
+                    ongoingChain = false;
+                    break;
+                }
+            }
+            if (ongoingChain)
+            {
+                // ongoing chain: nextChainElement can be added to the current chain
+
+                if (startToChain.contains(nextChainElement))
+                {
+                    // if we already have a chain that starts with nextChainElement, we merge both chains.
+                    startToChain.at(label).splice(startToChain.at(label).end(), startToChain.at(nextChainElement));
+                    startToChain.erase(nextChainElement);
+                    // the current chain is finished after the merge (because the nextChainElement was finished)
+                    break;
+                }
+                else
+                {
+                    // if nextChainElement does not start a new chain, we just add nextChainElement
+                    // and continue building up this chain.
+                    currentChainElement = nextChainElement;
+                    startToChain.at(label).push_back(currentChainElement);
+                    visitedLabels.insert(currentChainElement);
+                }
+            }
+            else
+            {
+                // if chain is not ongoing we continue with the next unseen label
+                // to check if this next label starts a chain.
+                break;
+            }
+        }
+    }
+
+    std::list<std::pair<unsigned int, unsigned int>> reducedChainsStartEnd;
+
+    for (const auto& [_, chain] : startToChain)
+    {
+        if (chain.size() <= lengthReducedChain)
+            continue;
+
+        // for the shortenChainAction we only need the last element that remains in the graph
+        // and the last element of the chain.
+        auto start = chain.begin();
+        std::advance(start, lengthReducedChain - 1);
+        reducedChainsStartEnd.emplace_back(*start, chain.back());
+    }
+
+    if (reducedChainsStartEnd.empty())
+        return nullptr;
+    return std::make_shared<ChainReductionRule>(instance, context, reducedChainsStartEnd);
+}
+
+std::string solver::ChainReductionRule::name() const
+{
+    return "ChainReductionRule";
+}
+
+std::shared_ptr<solver::AbstractRule> solver::ChainReductionRule::clone() const
+{
+    return std::make_shared<ChainReductionRule>(instance,context,reducedChains);
+}

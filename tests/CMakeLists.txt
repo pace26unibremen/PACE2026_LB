@@ -58,6 +58,39 @@ add_test(NAME ReverseBRuleTests COMMAND $<TARGET_FILE:ReverseBRuleTests>)
 target_compile_definitions(ReverseBRuleTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
 target_compile_definitions(ReverseBRuleTests PRIVATE TEST_EXAMPLES_DIR="${CMAKE_SOURCE_DIR}/res/tests/")
 
+add_executable(ShortenChainActionTests ShortenChainActionTests.cpp)
+target_link_libraries(ShortenChainActionTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME ShortenChainActionTests COMMAND $<TARGET_FILE:ShortenChainActionTests>)
+target_compile_definitions(ShortenChainActionTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
+target_compile_definitions(ShortenChainActionTests PRIVATE TEST_EXAMPLES_DIR="${CMAKE_SOURCE_DIR}/res/tests/")
+
+add_executable(ChainReductionTests ChainReductionTests.cpp)
+target_link_libraries(ChainReductionTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME ChainReductionTests COMMAND $<TARGET_FILE:ChainReductionTests>)
+target_compile_definitions(ChainReductionTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
+target_compile_definitions(ChainReductionTests PRIVATE TEST_EXAMPLES_DIR="${CMAKE_SOURCE_DIR}/res/tests/")
+
+add_executable(ReductionSolverTests ReductionSolverTests.cpp)
+target_link_libraries(ReductionSolverTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME ReductionSolverTests COMMAND $<TARGET_FILE:ReductionSolverTests>)
+
+add_executable(ForcedCherryCutRuleTests ForcedCherryCutRuleTests.cpp)
+target_link_libraries(ForcedCherryCutRuleTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME ForcedCherryCutRuleTests COMMAND $<TARGET_FILE:ForcedCherryCutRuleTests>)
+
+add_executable(ApproximationTests ApproximationTests.cpp)
+target_link_libraries(ApproximationTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME ApproximationTests COMMAND $<TARGET_FILE:ApproximationTests>)
+target_compile_definitions(ApproximationTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
+
+add_executable(ApproximationConfigTests ApproximationConfigTests.cpp)
+target_link_libraries(ApproximationConfigTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME ApproximationConfigTests COMMAND $<TARGET_FILE:ApproximationConfigTests>)
+
+add_executable(GreedyCherryCutRuleTests GreedyCherryCutRuleTests.cpp)
+target_link_libraries(GreedyCherryCutRuleTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME GreedyCherryCutRuleTests COMMAND $<TARGET_FILE:GreedyCherryCutRuleTests>)
+target_compile_definitions(GreedyCherryCutRuleTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
 
 #add_executable(ClusterPointTests ClusterPointTests.cpp)
 #target_link_libraries(ClusterPointTests PRIVATE Solver Graph Cluster Catch2::Catch2WithMain)

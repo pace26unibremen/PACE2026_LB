@@ -4,6 +4,8 @@
 #include "ACBranchingRule.hpp"
 #include "BRule.hpp"
 #include "EqualPairReductionRule.hpp"
+#include "ForcedCherryCutRule.hpp"
+#include "GreedyCherryCutRule.hpp"
 #include "ReverseBRule.hpp"
 #include "TwoBRule.hpp"
 
@@ -491,4 +493,35 @@ std::shared_ptr<solver::AbstractRule> solver::SiblingRuleFactory::allRules(const
     }
 
     return std::make_shared<ABCBranchingRule>(instance, context, aLabel, c1Label, forestWithBNodes);
+}
+
+std::shared_ptr<solver::AbstractRule>
+solver::SiblingRuleFactory::approximationRule(const std::shared_ptr<graph::Instance>& instance,
+                                              const std::shared_ptr<solver::Context>& context)
+{
+    const auto& [aLabel, cLabel] = getSiblings(instance, context);
+    if (aLabel == 0 or cLabel == 0)
+    {
+        // No sibling pair in forest 0 — the single-vertex rules handle this.
+        return nullptr;
+    }
+
+    // Check that first cherry against all other forests once.
+    for (unsigned int i = 1; i < instance->size(); i++)
+    {
+        const auto& fi = instance->at(i);
+        if (fi->LabelToTerminal().at(aLabel)->sibling != fi->LabelToTerminal().at(cLabel))
+        {
+            // (a, c) conflicts: cut it. Two trees get the sharp Whidden-Zeh 3-approximation cut,
+            // t > 2 gets the general greedy cut.
+            if (instance->size() == 2)
+            {
+                return std::make_shared<ForcedCherryCutRule>(instance, context, aLabel, cLabel);
+            }
+            return std::make_shared<GreedyCherryCutRule>(instance, context, aLabel, cLabel);
+        }
+    }
+
+    // (a, c) is a cherry in every forest: contract it.
+    return std::make_shared<EqualPairReductionRule>(instance, context, aLabel, cLabel);
 }

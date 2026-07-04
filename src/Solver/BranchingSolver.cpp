@@ -32,6 +32,21 @@ void solver::BranchingSolver::setTimeoutFlag(std::atomic<bool>* flag)
     timeoutFlag = flag;
 }
 
+void solver::BranchingSolver::seedSolution(std::list<std::shared_ptr<AbstractRule>> branch, float weight)
+{
+    solutionBranch = std::move(branch);
+    context->bestSolutionWeight = weight;
+}
+
+void solver::BranchingSolver::unapplySolutionBranch()
+{
+    for (auto it = solutionBranch.rbegin(); it != solutionBranch.rend(); ++it)
+    {
+        (*it)->unapply();
+    }
+    solutionBranch.clear();
+}
+
 void solver::BranchingSolver::unwindAppliedRules()
 {
     applyNext = std::queue<std::shared_ptr<AbstractRule>>();
