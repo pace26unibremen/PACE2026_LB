@@ -11,15 +11,11 @@ namespace solver {
 
 ILPFormulation::ILPFormulation(std::shared_ptr<graph::Forest> forest1,
                                 std::shared_ptr<graph::Forest> forest2,
-                                unsigned int rootLabel): forest1(forest1), forest2(forest2),
-      lca1(std::make_shared<cluster::LeastCommonAncestor>(forest1)),
-      lca2(std::make_shared<cluster::LeastCommonAncestor>(forest2)),
-      labelToTerminal1(buildLabelToTerminal(*forest1)),
-      labelToTerminal2(buildLabelToTerminal(*forest2)),
+                                unsigned int rootLabel) : 
+      forestData_1(buildForestData(forest1)),
+      forestData_2(buildForestData(forest2)),
       rootLabel(rootLabel)
-{
-    int numLeaves = forest1->TerminalToLabel().size();
-}
+{}
 
 ILPProblem ILPFormulation::build() const
 {
@@ -30,17 +26,17 @@ ILPProblem ILPFormulation::build() const
     // NOTE: Assumes Forest::Roots()[0] is the root of the single tree in each forest.
     // Each forest in the instance is expected to contain exactly one tree.
 
-    assert(forest1->Roots().size() == 1);
-    assert(forest2->Roots().size() == 1);
+    assert(forestData_1.forestPtr->Roots().size() == 1);
+    assert(forestData_2.forestPtr->Roots().size() == 1);
     
     ILPProblem problem;
-    auto nodeToIndex1 = buildNodeToIndexMap(*forest1);
-    auto nodeToIndex2 = buildNodeToIndexMap(*forest2);
-    int numVars = getNumVars(*forest1);
+    auto nodeToIndex1 = buildNodeToIndexMap(*forestData_1.forestPtr);
+    auto nodeToIndex2 = buildNodeToIndexMap(*forestData_2.forestPtr);
+    int numVars = getNumVars(*forestData_1.forestPtr);
 
     if (rootLabel != 0)
     {
-        int rootIndex = nodeToIndex1.at(labelToTerminal1.at(rootLabel));
+        int rootIndex = nodeToIndex1.at(forestData_1.labelToTerminal.at(rootLabel));
         for(int i = 0; i < numVars; i++) 
         {
             char varName[64];
@@ -67,14 +63,13 @@ ILPProblem ILPFormulation::build() const
         //========= 2. Add Constraints ========
 
         // Root-Constraint: x_root <= 0
-        int rootIndex = getRootIndex(*forest1);
+        int rootIndex = getRootIndex(*forestData_1.forestPtr);
         std::vector<int> varIndices = { rootIndex };
         problem.addConstraint(varIndices, 0.0, false);
     }    
     // Triple-Constraints: for every Tripel-Constraint-Set S: ∑_{i∈S} xᵢ ≥ 1
     // NOTE: A constraint here is a set of integers, that represent Variable Indices... 
-    std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(*forest1, *forest2, *lca1, *lca2, nodeToIndex1, nodeToIndex2,
-                                                                                    labelToTerminal1, labelToTerminal2);
+    std::vector<std::vector<int>> tripleConstraints = computeTripleConstraints(forestData_1, forestData_2);
     
     for (const std::vector<int>& edges : tripleConstraints)
     {
@@ -88,8 +83,7 @@ ILPProblem ILPFormulation::build() const
     }
 
     // Pathpair-Constraints: for every pathpair-constraint-set S: ∑_{i∈S} xᵢ ≥ 1
-    std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(*forest1, *forest2, *lca1, *lca2, 
-                                                                                        nodeToIndex1, nodeToIndex2, labelToTerminal1, labelToTerminal2);
+    std::vector<std::vector<int>> pathPairConstraints = computePathPairConstraints(forestData_1, forestData_2);
 
     for (const std::vector<int>& edges : pathPairConstraints)
     {

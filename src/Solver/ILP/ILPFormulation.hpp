@@ -17,27 +17,10 @@ namespace solver {
 class ILPFormulation 
 {
     private:
-        /// \brief First Tree (Forest) of binary MAF-Problem.
-        std::shared_ptr<graph::Forest> forest1;
-
-        /// \brief Second Tree (Forest) of binary MAF-Problem.
-        std::shared_ptr<graph::Forest> forest2;
-
-        /// \brief Precomputed LCA table for forest1.
-        /// \note Must be reinstantiated if forest1 changes.
-        std::shared_ptr<cluster::LeastCommonAncestor> lca1;
- 
-        /// \brief Precomputed LCA table for forest2.
-        /// \note Must be reinstantiated if forest2 changes.
-        std::shared_ptr<cluster::LeastCommonAncestor> lca2;
-
-        /// \brief Precomputed LabeltoTerminal Map for forest1.
-        /// \note Must be reinstantiated if forest1 changes.
-        std::unordered_map<unsigned int, graph::Node*> labelToTerminal1;
- 
-        /// \brief Precomputed LabeltoTerminal Map for forest2.
-        /// \note Must be reinstantiated if forest2 changes.
-        std::unordered_map<unsigned int, graph::Node*> labelToTerminal2;
+        /// \brief Data of First Tree (Forest) of binary MAF-Problem.
+        ForestData forestData_1;
+        /// \brief Data of Second Tree (Forest) of binary MAF-Problem.
+        ForestData forestData_2;
 
         unsigned int rootLabel = 0;
 

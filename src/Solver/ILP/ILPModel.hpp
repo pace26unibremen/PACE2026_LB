@@ -1,11 +1,44 @@
 #ifndef PACE2026_ILPMODEL_HPP
 #define PACE2026_ILPMODEL_HPP
 
+#include "../Cluster/LeastCommonAncestor.hpp"
+#include "../../Graph/Forest.hpp"
+#include "../../Graph/Node.hpp"
+
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 namespace solver
 {
+
+// Auxiliary structure that combines all necessary Data for one forest...
+struct ForestData {
+
+        /// \brief A Forest of binary MAF-Problem.
+        std::shared_ptr<graph::Forest> forestPtr;
+
+        /// \brief Precomputed LCA table for the forest.
+        /// \note Must be reinstantiated if forest changes.
+        std::shared_ptr<cluster::LeastCommonAncestor> lca;
+
+        /// \brief Precomputed Node <-> VarIndex Map for the forest.
+        std::unordered_map<const graph::Node*, int> nodeToIndex;
+
+        /// \brief Precomputed LabeltoTerminal Map for the forest.
+        /// \note Must be reinstantiated if the forest changes.
+        /// \note This is needed, as the reduction solver doesn't update the map.
+        std::unordered_map<unsigned int, graph::Node*> labelToTerminal;
+
+        /// \brief A Cache for computing paths between two leaves in the forest.
+        mutable std::unordered_map<uint64_t, std::vector<int>> pathCache;
+};
+
+/// \brief Initialises all necessary Data for the given Forest.
+/// \param forest Forest used for initialisation...
+/// \return Data Object of that Forest.
+[[nodiscard]]
+const ForestData buildForestData(std::shared_ptr<graph::Forest> forest);
 
 /// \brief Represents a Variable for ILP Formulation.
 struct ILPVariable

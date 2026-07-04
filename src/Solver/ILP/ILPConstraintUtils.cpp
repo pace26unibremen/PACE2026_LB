@@ -7,20 +7,12 @@
 
 namespace solver {
 
-std::vector<std::vector<int>> computeTripleConstraints(
-                const graph::Forest& forest1,
-                const graph::Forest& forest2,
-                cluster::LeastCommonAncestor& lca1,
-                cluster::LeastCommonAncestor& lca2,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal1,
-                const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal2)
+std::vector<std::vector<int>> computeTripleConstraints(const ForestData& forestData_1, const ForestData& forestData_2)
 {
     std::vector<std::vector<int>> tripleConstraints;
     // Need the labels, due to reductions these may not be in order...
     std::vector<unsigned int> labels;
-    for (const auto& [_, label] : forest1.TerminalToLabel())
+    for (const auto& [_, label] : forestData_1.forestPtr->TerminalToLabel())
     {
         labels.push_back(label);
     }
@@ -33,15 +25,14 @@ std::vector<std::vector<int>> computeTripleConstraints(
         {
             for(unsigned int k = j+1; k < numLeaves; ++k)
             {
-                bool fIncTriple = checkIncompatibleTriple(labels[i], labels[j], labels[k], 
-                                                forest1, forest2, lca1, lca2, nodeToIndex1, nodeToIndex2, labelToTerminal1, labelToTerminal2);
+                bool fIncTriple = checkIncompatibleTriple(labels[i], labels[j], labels[k], forestData_1, forestData_2);
                 
                 // If Triple is compatible just continue...
                 if (!fIncTriple) continue;
 
-                std::vector<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, labelToTerminal1);
-                std::vector<int> edgesjk = getPath(forest1, labels[j], labels[k], lca1, nodeToIndex1, labelToTerminal1);
-                std::vector<int> edgesik = getPath(forest1, labels[i], labels[k], lca1, nodeToIndex1, labelToTerminal1);
+                std::vector<int> edgesij = getPath(labels[i], labels[j], forestData_1);
+                std::vector<int> edgesjk = getPath(labels[j], labels[k], forestData_1);
+                std::vector<int> edgesik = getPath(labels[i], labels[k], forestData_1);
 
                 // Union of all paths...
                 std::vector<int> triPathEdges;
@@ -66,21 +57,13 @@ std::vector<std::vector<int>> computeTripleConstraints(
     return tripleConstraints;
 }
 
-std::vector<std::vector<int>> computePathPairConstraints(
-                const graph::Forest& forest1,
-                const graph::Forest& forest2,
-                cluster::LeastCommonAncestor& lca1,
-                cluster::LeastCommonAncestor& lca2,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal1,
-                const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal2)
+std::vector<std::vector<int>> computePathPairConstraints(const ForestData& forestData_1, const ForestData& forestData_2)
 {
     std::vector<std::vector<int>> pathPairConstraints;
 
     // Need the labels, due to reductions these may not be iterating...
     std::vector<unsigned int> labels;
-    for (const auto& [_, label] : forest1.TerminalToLabel())
+    for (const auto& [_, label] : forestData_1.forestPtr->TerminalToLabel())
     {
         labels.push_back(label);
     }
@@ -101,11 +84,11 @@ std::vector<std::vector<int>> computePathPairConstraints(
                     if(q == j) continue;
 
                     // but not disjoint in forest2...
-                    if(!areTwoPathsDisjoint(forest1, labels[i], labels[j], labels[p], labels[q], lca1, nodeToIndex1, labelToTerminal1)) continue;
-                    if( areTwoPathsDisjoint(forest2, labels[i], labels[j], labels[p], labels[q], lca2, nodeToIndex2, labelToTerminal2)) continue;
+                    if(!areTwoPathsDisjoint(labels[i], labels[j], labels[p], labels[q], forestData_1)) continue;
+                    if( areTwoPathsDisjoint(labels[i], labels[j], labels[p], labels[q], forestData_2)) continue;
                     
-                    std::vector<int> edgesij = getPath(forest1, labels[i], labels[j], lca1, nodeToIndex1, labelToTerminal1);
-                    std::vector<int> edgespq = getPath(forest1, labels[p], labels[q], lca1, nodeToIndex1, labelToTerminal1);
+                    std::vector<int> edgesij = getPath(labels[i], labels[j], forestData_1);
+                    std::vector<int> edgespq = getPath(labels[p], labels[q], forestData_1);
 
                     std::vector<int> pathPairEdges;
                     pathPairEdges.reserve(edgesij.size() + edgespq.size());

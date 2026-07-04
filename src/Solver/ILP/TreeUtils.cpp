@@ -27,20 +27,17 @@ int getRootIndex(graph::Forest& forest)
 }
 
 int getLCA(unsigned int leaf1, unsigned int leaf2,
-           const graph::Forest& forest,
-           cluster::LeastCommonAncestor& lca,
-           const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-           const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal)
+           const ForestData& forestData)
 {
-    graph::Node* node1 = labelToTerminal.at(leaf1);
-    graph::Node* node2 = labelToTerminal.at(leaf2);
+    graph::Node* node1 = forestData.labelToTerminal.at(leaf1);
+    graph::Node* node2 = forestData.labelToTerminal.at(leaf2);
 
     // Compute LCA of Nodes...
-    graph::Node* lcaNode = lca.getLeastCommonAncestor(node1, node2);
+    graph::Node* lcaNode = (*forestData.lca).getLeastCommonAncestor(node1, node2);
 
     // Return Index...
-    assert(nodeToIndex.count(lcaNode) > 0);
-    return nodeToIndex.at(lcaNode);
+    assert(forestData.nodeToIndex.count(lcaNode) > 0);
+    return forestData.nodeToIndex.at(lcaNode);
 }
 
 // Auxiliary recursive Function for DFS of the forest.
@@ -101,16 +98,13 @@ int getNumVars(const graph::Forest& forest)
 // Checks whether the paths between two pairs of leaves are edge-disjoint.
 // Computes both paths via getPath and checks whether their intersection is empty.
 // Returns true if the paths share no common edges, false otherwise.
-bool areTwoPathsDisjoint(const graph::Forest& forest,
-                          unsigned int lpair1, unsigned int rpair1,
-                          unsigned int lpair2, unsigned int rpair2,
-                          cluster::LeastCommonAncestor& lca,
-                          const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-                          const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal)
+bool areTwoPathsDisjoint(unsigned int lpair1, unsigned int rpair1,
+                         unsigned int lpair2, unsigned int rpair2,
+                         const ForestData& forestData)
 {
     // Idea: Calculate both Paths between pairs and check wether intersection of paths is empty...
-    std::vector<int> path1 = getPath(forest, lpair1, rpair1, lca, nodeToIndex, labelToTerminal);
-    std::vector<int> path2 = getPath(forest, lpair2, rpair2, lca, nodeToIndex, labelToTerminal);
+    std::vector<int> path1 = getPath(lpair1, rpair1, forestData);
+    std::vector<int> path2 = getPath(lpair2, rpair2, forestData);
 
     // If one path is empty throw logic_error...
     if (path1.empty() || path2.empty())
@@ -131,40 +125,43 @@ bool areTwoPathsDisjoint(const graph::Forest& forest,
 // Uses the LCA to find the meeting point of both leaves.
 // Traverses upwards from each leaf to the LCA, collecting edge indices.
 // The LCA node itself is not included as it represents no edge on the path.
-std::vector<int> getPath(const graph::Forest& forest,
-                      unsigned int leaf1, unsigned int leaf2,
-                      cluster::LeastCommonAncestor& lca,
-                      const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-                      const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal)
+std::vector<int> getPath(unsigned int leaf1, unsigned int leaf2, const ForestData& forestData)
 { 
-    std::vector<int> edges;
-    if (leaf1 == leaf2)
-        return edges;
+    // Calculate Key for Cache...
+    if (leaf1 > leaf2) std::swap(leaf1, leaf2);
+    uint64_t key = (static_cast<uint64_t>(leaf1) << 32) | leaf2;
 
+    // Look up in Cache...
+    auto it = forestData.pathCache.find(key);
+    if (it != forestData.pathCache.end())
+        return it->second;
+
+    std::vector<int> edges;
+    
     // Get LCA...
-    const graph::Node* lcaNode = lca.getLeastCommonAncestor(
-        labelToTerminal.at(leaf1),
-        labelToTerminal.at(leaf2)
+    const graph::Node* lcaNode = (*forestData.lca).getLeastCommonAncestor(
+        forestData.labelToTerminal.at(leaf1),
+        forestData.labelToTerminal.at(leaf2)
     );
 
     // LCA should exist...
     assert(lcaNode != nullptr);
 
     // Path from leaf1 to LCA...
-    const graph::Node* current = labelToTerminal.at(leaf1);
+    const graph::Node* current = forestData.labelToTerminal.at(leaf1);
     while(current != lcaNode)
     {   
-        assert(nodeToIndex.count(current) > 0);
-        edges.push_back(nodeToIndex.at(current));
+        assert(forestData.nodeToIndex.count(current) > 0);
+        edges.push_back(forestData.nodeToIndex.at(current));
         current = current->parent;
     }
 
     // Path from leaf2 to LCA...
-    current = labelToTerminal.at(leaf2);
+    current = forestData.labelToTerminal.at(leaf2);
     while(current != lcaNode)
     {
-        assert(nodeToIndex.count(current) > 0);
-        edges.push_back(nodeToIndex.at(current));
+        assert(forestData.nodeToIndex.count(current) > 0);
+        edges.push_back(forestData.nodeToIndex.at(current));
         current = current->parent;
     }
 
@@ -178,18 +175,13 @@ std::vector<int> getPath(const graph::Forest& forest,
     }
     // Sort edges...
     std::sort(edges.begin(), edges.end());
-    return edges;
+    auto [inserted_it, _] = forestData.pathCache.emplace(key, std::move(edges));
+
+    return inserted_it->second;
 }
 
 bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned int leaf3,
-                        const graph::Forest& forest1,
-                        const graph::Forest& forest2,
-                        cluster::LeastCommonAncestor& lca1,
-                        cluster::LeastCommonAncestor& lca2, 
-                        const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal1,
-                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal2)
+                             const ForestData& forestData1, const ForestData& forestData2)
 {   
 
     // If two leaves are equal throw logic_error...
@@ -198,12 +190,12 @@ bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned in
 
     bool fIncTriple = false;
 
-    int lcaij1 = getLCA(leaf1, leaf2, forest1, lca1, nodeToIndex1, labelToTerminal1);
-    int lcajk1 = getLCA(leaf2, leaf3, forest1, lca1, nodeToIndex1, labelToTerminal1);
-    int lcaik1 = getLCA(leaf1, leaf3, forest1, lca1, nodeToIndex1, labelToTerminal1);
-    int lcaij2 = getLCA(leaf1, leaf2, forest2, lca2, nodeToIndex2, labelToTerminal2);
-    int lcajk2 = getLCA(leaf2, leaf3, forest2, lca2, nodeToIndex2, labelToTerminal2);
-    int lcaik2 = getLCA(leaf1, leaf3, forest2, lca2, nodeToIndex2, labelToTerminal2);
+    int lcaij1 = getLCA(leaf1, leaf2, forestData1);
+    int lcajk1 = getLCA(leaf2, leaf3, forestData1);
+    int lcaik1 = getLCA(leaf1, leaf3, forestData1);
+    int lcaij2 = getLCA(leaf1, leaf2, forestData2);
+    int lcajk2 = getLCA(leaf2, leaf3, forestData2);
+    int lcaik2 = getLCA(leaf1, leaf3, forestData2);
 
     if(lcaij1 == lcajk1)
     {

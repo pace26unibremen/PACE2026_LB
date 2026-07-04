@@ -19,14 +19,8 @@ namespace solver {
 IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance)
     : AbstractSolver(instance)
 {
-    forest_1 = (*instance)[0];
-    forest_2 = (*instance)[1];
-    lca1 = std::make_shared<cluster::LeastCommonAncestor>(forest_1);
-    lca2 = std::make_shared<cluster::LeastCommonAncestor>(forest_2);
-    nodeToIndex1 = buildNodeToIndexMap(*forest_1);
-    nodeToIndex2 = buildNodeToIndexMap(*forest_2);
-    labelToTerminal1 = buildLabelToTerminal(*forest_1);
-    labelToTerminal2 = buildLabelToTerminal(*forest_2);
+    forestData_1 = buildForestData((*instance)[0]);
+    forestData_2 = buildForestData((*instance)[1]);
     cnt_constraints = 0;
 }
 
@@ -35,14 +29,8 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
         AbstractSolver(instance),
         context(context)
 {
-    forest_1 = (*instance)[0];
-    forest_2 = (*instance)[1];
-    lca1 = std::make_shared<cluster::LeastCommonAncestor>(forest_1);
-    lca2 = std::make_shared<cluster::LeastCommonAncestor>(forest_2);
-    nodeToIndex1 = buildNodeToIndexMap(*forest_1);
-    nodeToIndex2 = buildNodeToIndexMap(*forest_2);
-    labelToTerminal1 = buildLabelToTerminal(*forest_1);
-    labelToTerminal2 = buildLabelToTerminal(*forest_2);
+    forestData_1 = buildForestData((*instance)[0]);
+    forestData_2 = buildForestData((*instance)[1]);
     cnt_constraints = 0;
 }
 
@@ -55,7 +43,7 @@ bool IncrementalMAFSolver::solve()
 
     // Important Variables:
     int cnt_rounds = 1;
-    int numVars = getNumVars(*forest_1);
+    int numVars = getNumVars(*forestData_1.forestPtr);
 
     // Inititalise Solver for first round...
     buildSolver(MaxSATSolverType::UWrMaxSAT);
@@ -112,7 +100,7 @@ void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
             throw std::invalid_argument("IncrementalMAFSolver: Unknown ILP solver type");
     }
 
-    solver->initSolver(nodeToIndex1.size());
+    solver->initSolver(forestData_1.nodeToIndex.size());
     
     // Add Soft Constraints...
     if (context)
@@ -120,8 +108,8 @@ void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
         unsigned int rootLabel = context->clusterRootLabel;
         if (rootLabel != 0)
         {
-            int rootIndex = nodeToIndex1.at(labelToTerminal1.at(rootLabel));
-            for(const auto& [_, index] : nodeToIndex1) 
+            int rootIndex = forestData_1.nodeToIndex.at(forestData_1.labelToTerminal.at(rootLabel));
+            for(const auto& [_, index] : forestData_1.nodeToIndex) 
             {
                 if (index == rootIndex) {
                     solver->addSoftClause(index, 0.5); 
@@ -135,13 +123,13 @@ void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
         }
     }
 
-    for(const auto& [_, index] : nodeToIndex1) 
+    for(const auto& [_, index] : forestData_1.nodeToIndex) 
     {
         solver->addSoftClause(index, 1.0);
     }
 
     // Add Root-Constraint...
-    int rootIndex = getRootIndex(*forest_1);
+    int rootIndex = getRootIndex(*forestData_1.forestPtr);
     std::vector<int> varIndices = { rootIndex };
     solver->addHardClause(varIndices, false);
     cnt_constraints++;
@@ -152,10 +140,7 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
 {
     int n_constraints = 0;
     bool pathpair = false;
-
-    std::shared_ptr<cluster::LeastCommonAncestor> lca_sol = std::make_shared<cluster::LeastCommonAncestor>(mafSolution);
-    std::unordered_map<const graph::Node*, int> nodeToIndex_sol = buildNodeToIndexMap(*mafSolution);
-    std::unordered_map<unsigned int, graph::Node*> labelToTerminal_sol = buildLabelToTerminal(*mafSolution);
+    auto forestData_sol = buildForestData(mafSolution);
 
     for (const graph::Node* solutionRoot : mafSolution->Roots())
     {
@@ -164,14 +149,11 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
 
         // Check if there are still constraints to be added...
         if (labels.size() < 3) continue;
-        for (auto type : ALL_CHECK_TYPES)
+        n_constraints = checkTripleConstraints(n_constraints, labels, ConstraintCheckType::All, forestData_sol); 
+        if (n_constraints < 0)
         {
-            n_constraints = checkTripleConstraints(n_constraints, labels, type, mafSolution, lca_sol, nodeToIndex_sol, labelToTerminal_sol); 
-            if (n_constraints < 0)
-            {
-                std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
-                return false;
-            }
+            std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
+            return false;
         }
     }
 
@@ -179,7 +161,7 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
     {
         pathpair = true;
         std::cout << "No more triple constraints - checking pathpair constraints..." << std::endl;
-        n_constraints = checkPathPairConstraints(n_constraints, ConstraintCheckType::Linear, mafSolution, lca_sol, nodeToIndex_sol, labelToTerminal_sol);
+        n_constraints = checkPathPairConstraints(n_constraints, ConstraintCheckType::Linear, forestData_sol);
         if (n_constraints < 0)
         {
             std::cout << "#r constraints: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
@@ -190,7 +172,7 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
     if(n_constraints == 0)
     {
         std::cout << "Found no constraints - checking all pathpair constraints..." << std::endl;
-        n_constraints = checkPathPairConstraints(n_constraints, ConstraintCheckType::All, mafSolution, lca_sol, nodeToIndex_sol, labelToTerminal_sol);
+        n_constraints = checkPathPairConstraints(n_constraints, ConstraintCheckType::All, forestData_sol);
     }
 
     
@@ -258,7 +240,7 @@ void IncrementalMAFSolver::addInitialConstraints()
     std::cout << "#r Round: 1" << std::endl;
     int n_constraints = 0;
     std::vector<unsigned int> labels;
-    for (const auto& [_, label] : (*forest_1).TerminalToLabel())
+    for (const auto& [_, label] : (*forestData_1.forestPtr).TerminalToLabel())
     {
         labels.push_back(label);
     }
@@ -267,8 +249,7 @@ void IncrementalMAFSolver::addInitialConstraints()
     int numLeaves = labels.size();
     for (int i = 0; i + 2 < numLeaves; i += 3)
     {   
-        if (checkIncompatibleTriple(labels[i], labels[i+1], labels[i+2], (*forest_1), (*forest_2), 
-                                                        (*lca1), (*lca2), nodeToIndex1, nodeToIndex2, labelToTerminal1, labelToTerminal2))
+        if (checkIncompatibleTriple(labels[i], labels[i+1], labels[i+2], forestData_1, forestData_2))
         {
             generateTripleConstraint(labels[i], labels[i+1], labels[i+2]);
             n_constraints++;
@@ -279,8 +260,8 @@ void IncrementalMAFSolver::addInitialConstraints()
     {   
         if (labels[i] == labels[i+1] || labels[i] == labels[i+3] || labels[i+2] == labels[i+1] || labels[i+2] == labels[i+3]) continue;
         {
-            if(!areTwoPathsDisjoint((*forest_1), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca1), nodeToIndex1, labelToTerminal1)) continue;
-            if( areTwoPathsDisjoint((*forest_2), labels[i], labels[i+1], labels[i+2], labels[i+3], (*lca2), nodeToIndex2, labelToTerminal2)) continue;
+            if(!areTwoPathsDisjoint(labels[i], labels[i+1], labels[i+2], labels[i+3], forestData_1)) continue;
+            if( areTwoPathsDisjoint(labels[i], labels[i+1], labels[i+2], labels[i+3], forestData_2)) continue;
 
             generatePathPairConstraint(labels[i], labels[i+1], labels[i+2], labels[i+3]);
             n_constraints++; 
@@ -291,10 +272,7 @@ void IncrementalMAFSolver::addInitialConstraints()
 }
 
 int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<unsigned int> labels, ConstraintCheckType type,
-                                                std::shared_ptr<graph::Forest>& mafSolution,
-                                                std::shared_ptr<cluster::LeastCommonAncestor>& lca_sol,
-                                                std::unordered_map<const graph::Node*, int>& nodeToIndex_sol,
-                                                std::unordered_map<unsigned int, graph::Node*>& labelToTerminal_sol)
+                                                const ForestData& forestData_sol)
 {
     switch (type)
     {
@@ -302,14 +280,13 @@ int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<
         {
             for (int i = 0; i + 2 < labels.size(); i += 3)
             {   
-                if (checkIncompatibleTriple(labels[i], labels[i+1], labels[i+2], (*mafSolution), (*forest_2), (*lca_sol), (*lca2), 
-                                                                  nodeToIndex_sol, nodeToIndex2, labelToTerminal_sol, labelToTerminal2))
+                if (checkIncompatibleTriple(labels[i], labels[i+1], labels[i+2], forestData_sol, forestData_2))
                 {
                     generateTripleConstraint(labels[i], labels[i+1], labels[i+2]);
                     n_constraints++;
-                }
-                if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
+                    if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
                         return -1;
+                }
             }
             break;
         }
@@ -321,8 +298,7 @@ int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<
                 {
                     for(unsigned int k = j+1; k < labels.size(); ++k)
                     {
-                        if (checkIncompatibleTriple(labels[i], labels[j], labels[k], (*mafSolution), (*forest_2), (*lca_sol), (*lca2), 
-                                                            nodeToIndex_sol, nodeToIndex2, labelToTerminal_sol, labelToTerminal2))
+                        if (checkIncompatibleTriple(labels[i], labels[j], labels[k], forestData_sol, forestData_2))
                         {
                             generateTripleConstraint(labels[i], labels[j], labels[k]);
                             n_constraints++;
@@ -339,12 +315,9 @@ int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<
 }
 
 int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints, ConstraintCheckType type,
-                                                std::shared_ptr<graph::Forest>& mafSolution,
-                                                std::shared_ptr<cluster::LeastCommonAncestor>& lca_sol,
-                                                std::unordered_map<const graph::Node*, int>& nodeToIndex_sol,
-                                                std::unordered_map<unsigned int, graph::Node*>& labelToTerminal_sol)
+                                                   const ForestData& forestData_sol)
 {
-   std::vector<LeafPair> pairs = generateLeafPairs(mafSolution);
+   std::vector<LeafPair> pairs = generateLeafPairs(forestData_sol.forestPtr);
 
    switch (type)
    {
@@ -357,8 +330,8 @@ int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints, Constraint
 
                 if (pair1.l == pair2.l || pair1.l == pair2.r || pair1.r == pair2.l || pair1.r == pair2.r) continue;
                 // but not disjoint in forest2...
-                if(!areTwoPathsDisjoint((*mafSolution), pair1.l, pair1.r, pair2.l, pair2.r, (*lca_sol), nodeToIndex_sol, labelToTerminal_sol)) continue;
-                if( areTwoPathsDisjoint((*forest_2), pair1.l, pair1.r, pair2.l, pair2.r, (*lca2), nodeToIndex2, labelToTerminal2)) continue;
+                if(!areTwoPathsDisjoint(pair1.l, pair1.r, pair2.l, pair2.r, forestData_sol)) continue;
+                if( areTwoPathsDisjoint(pair1.l, pair1.r, pair2.l, pair2.r, forestData_2)) continue;
 
                 generatePathPairConstraint(pair1.l, pair1.r, pair2.l, pair2.r);
                 n_constraints++;
@@ -377,8 +350,8 @@ int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints, Constraint
                     const LeafPair& pair2 = pairs[j];
                     
                     if (pair1.l == pair2.l || pair1.l == pair2.r || pair1.r == pair2.l || pair1.r == pair2.r) continue;
-                    if(!areTwoPathsDisjoint((*mafSolution), pair1.l, pair1.r, pair2.l, pair2.r, (*lca_sol), nodeToIndex_sol, labelToTerminal_sol)) continue;
-                    if( areTwoPathsDisjoint((*forest_2), pair1.l, pair1.r, pair2.l, pair2.r, (*lca2), nodeToIndex2, labelToTerminal2)) continue;
+                    if(!areTwoPathsDisjoint(pair1.l, pair1.r, pair2.l, pair2.r, forestData_sol)) continue;
+                    if( areTwoPathsDisjoint(pair1.l, pair1.r, pair2.l, pair2.r, forestData_2)) continue;
 
                     generatePathPairConstraint(pair1.l, pair1.r, pair2.l, pair2.r);
                     n_constraints++;
@@ -395,9 +368,9 @@ int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints, Constraint
 
 void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3)
 {
-    std::vector<int> edgesij = getPath((*forest_1), label1, label2, (*lca1), nodeToIndex1, labelToTerminal1);
-    std::vector<int> edgesjk = getPath((*forest_1), label2, label3, (*lca1), nodeToIndex1, labelToTerminal1);
-    std::vector<int> edgesik = getPath((*forest_1), label1, label3, (*lca1), nodeToIndex1, labelToTerminal1);
+    std::vector<int> edgesij = getPath(label1, label2, forestData_1);
+    std::vector<int> edgesjk = getPath(label2, label3, forestData_1);
+    std::vector<int> edgesik = getPath(label1, label3, forestData_1);
 
     // Union of all paths...
     std::vector<int> triPathEdges;
@@ -422,8 +395,8 @@ void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigne
 void IncrementalMAFSolver::generatePathPairConstraint(unsigned int lpair1, unsigned int rpair1, 
                                                       unsigned int lpair2, unsigned int rpair2)
 {
-    std::vector<int> edgesij = getPath((*forest_1), lpair1, rpair1, (*lca1), nodeToIndex1, labelToTerminal1);
-    std::vector<int> edgespq = getPath((*forest_1), lpair2, rpair2, (*lca1), nodeToIndex1, labelToTerminal1);
+    std::vector<int> edgesij = getPath(lpair1, rpair1, forestData_1);
+    std::vector<int> edgespq = getPath(lpair2, rpair2, forestData_1);
 
     std::vector<int> pathPairEdges;
     pathPairEdges.reserve(edgesij.size() + edgespq.size());
@@ -441,7 +414,7 @@ void IncrementalMAFSolver::generatePathPairConstraint(unsigned int lpair1, unsig
     cnt_constraints++;
 }
 
-std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPairs(std::shared_ptr<graph::Forest>& mafSolution)
+std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPairs(const std::shared_ptr<graph::Forest>& mafSolution)
 {
     std::vector<LeafPair> pairs;
 
@@ -470,7 +443,7 @@ std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPa
     return pairs;
 }
 
-void recGetSubtreeLabels(const graph::Node* n, std::vector<unsigned int>& labels, std::shared_ptr<graph::Forest>& forest)
+void recGetSubtreeLabels(const graph::Node* n, std::vector<unsigned int>& labels, const std::shared_ptr<graph::Forest>& forest)
 {
     if (!n) return;
     if (!n->leftChild)  // Blatt = kein linkes Kind
@@ -478,7 +451,8 @@ void recGetSubtreeLabels(const graph::Node* n, std::vector<unsigned int>& labels
     recGetSubtreeLabels(n->leftChild, labels, forest);
     recGetSubtreeLabels(n->rightChild, labels, forest);
 }
-std::vector<unsigned int> IncrementalMAFSolver::getSubtreeLabels(const graph::Node* subtreeRoot, std::shared_ptr<graph::Forest>& forest)
+
+std::vector<unsigned int> IncrementalMAFSolver::getSubtreeLabels(const graph::Node* subtreeRoot, const std::shared_ptr<graph::Forest>& forest)
 {
     auto labels = std::vector<unsigned int>();
     recGetSubtreeLabels(subtreeRoot, labels, forest);

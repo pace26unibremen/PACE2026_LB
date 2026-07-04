@@ -4,6 +4,7 @@
 #include "../../Graph/Forest.hpp"
 #include "../../Graph/Node.hpp"
 #include "../Cluster/LeastCommonAncestor.hpp"
+#include "ILPModel.hpp"
 
 #include <unordered_map>
 #include <memory>
@@ -42,67 +43,43 @@ std::unordered_map<int, graph::Node*> buildIndexToNodeMap(graph::Forest& forest)
 int getNumVars(const graph::Forest& forest);
 
 /// \brief Returns the index of the Most Recent Common Ancestor of two leaves.
-/// \param forest Forest, that the leaves belong to.
-/// \param lca Precomputed LCA table for Forest.
 /// \param leaf1 First Leaf.
 /// \param leaf2 Second Leaf.
-/// \param nodeToIndex Map that helps extract the Index of common ancestor.
+/// \param forestData Data Object of the forest.
 /// \return Most Recent Common Ancestor of both Leaves.
-int getLCA(int leaf1, unsigned int leaf2, const graph::Forest& forest, cluster::LeastCommonAncestor& lca,
-            const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-            const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal);
+int getLCA(int leaf1, unsigned int leaf2, const ForestData& forestData);
 
 /// \brief Returns the set of edge indices on the path between two leaves.
-/// \param forest Forest, that the leaves belong to.
-/// \param lca Precomputed LCA table for Forest.
 /// \param leaf1 Label of first Leaf.
 /// \param leaf2 Label of second Leaf.
-/// \param nodeToIndex Map that helps extract the Index of edges. 
+/// \param forestData Data Object of the forest.
 /// \note Edge Indizes are different to the labels of leafs!!!
 /// \return Set of edge indices. (empty set if leaf1 == leaf2)
-std::vector<int> getPath(const graph::Forest& forest,
-                      unsigned int leaf1, unsigned int leaf2,
-                      cluster::LeastCommonAncestor& lca,
-                      const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-                      const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal);
+std::vector<int> getPath(unsigned int leaf1, unsigned int leaf2,
+                         const ForestData& forestData);
 
 /// \brief Checks whether two paths between leaf pairs are disjoint.
-/// \param forest Forest, that the leaves belong to.
-/// \param lca Precomputed LCA table for Forest.
 /// \param lpair1 First Leaf of first (left) pair.
 /// \param rpair1 First Leaf of second (right) pair.
 /// \param lpair2 Second Leaf of first (left) pair.
 /// \param rpair2 Second Leaf of second (right) pair.
-/// \param nodeToIndex Map that helps extract the indices of edges.
+/// \param forestData Data Object of the forest.
 /// \return true if paths of leaf pairs are disjoint, false otherwise.
-bool areTwoPathsDisjoint(const graph::Forest& forest,
-                          unsigned int lpair1, unsigned int rpair1,
-                          unsigned int lpair2, unsigned int rpair2,
-                          cluster::LeastCommonAncestor& lca,
-                          const std::unordered_map<const graph::Node*, int>& nodeToIndex,
-                          const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal);
+bool areTwoPathsDisjoint(unsigned int lpair1, unsigned int rpair1,
+                         unsigned int lpair2, unsigned int rpair2,
+                         const ForestData& forestData);
 
 /// \brief Checks wether Triple of Leaves is topologically incompatible between two trees.
-/// \param forest1 First Tree (Forest) of binary MAF-Problem.
-/// \param forest2 Second Tree (Forest) of binary MAF-Problem.
-/// \param lca1 Precomputed LCA table for forest1.
-/// \param lca2 Precomputed LCA table for forest2.
 /// \param leaf1 Index of First Leaf.
 /// \param leaf2 Index of Second Leaf.
 /// \param leaf3 Index of Third Leaf.
-/// \param nodeToIndex1 Map that helps translating indices to nodes of first forest.
-/// \param nodeToIndex2 Map that helps translating indices to nodes of second forest.
+/// \param forestData1 Data Object of the forest 1.
+/// \param forestData2 Data Object of the forest 2.
 /// \return true, if triple is incompatible, false otherwise
 [[nodiscard]]
 bool checkIncompatibleTriple(unsigned int leaf1, unsigned int leaf2, unsigned int leaf3,
-                        const graph::Forest& forest1,
-                        const graph::Forest& forest2,
-                        cluster::LeastCommonAncestor& lca1,
-                        cluster::LeastCommonAncestor& lca2, 
-                        const std::unordered_map<const graph::Node*, int>& nodeToIndex1,
-                        const std::unordered_map<const graph::Node*, int>& nodeToIndex2,
-                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal1,
-                        const std::unordered_map<unsigned int, graph::Node*>& labelToTerminal2);
+                            const ForestData& forestData1,
+                            const ForestData& forestData2);
 
 
 }  // namespace solver
