@@ -27,6 +27,9 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
     std::cout << "#r MAX CONSTRAINTS PER ROUND: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
     MIN_CONSTRAINTS_PER_ROUND = numLeaves;
     std::cout << "#r MIN CONSTRAINTS PER ROUND: " << MIN_CONSTRAINTS_PER_ROUND << "\n" << std::endl;
+    MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE = numLeaves;
+    currentLB = 0;
+
 }
 
 IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance,
@@ -37,6 +40,13 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
     forestData_1 = buildForestData((*instance)[0]);
     forestData_2 = buildForestData((*instance)[1]);
     cnt_constraints = 0;
+    int numLeaves = forestData_1.labelToTerminal.size();
+    MAX_CONSTRAINTS_PER_ROUND = numLeaves;
+    std::cout << "#r MAX CONSTRAINTS PER ROUND: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
+    MIN_CONSTRAINTS_PER_ROUND = numLeaves;
+    std::cout << "#r MIN CONSTRAINTS PER ROUND: " << MIN_CONSTRAINTS_PER_ROUND << "\n" << std::endl;
+    MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE = numLeaves;
+    currentLB = 0;
 }
 
 // =============================================================================
@@ -57,6 +67,7 @@ bool IncrementalMAFSolver::solve()
     while (true)
     {
         ILPSolution sol = solver->solve(numVars);
+        currentLB = sol.objValue;
         auto cutEdges = extractCutEdges(sol);
         auto mafSolution = reconstructMAF(cutEdges, false);
 
@@ -152,6 +163,7 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
     {
         std::vector<unsigned int> labels = getSubtreeLabels(solutionRoot, mafSolution);
         std::sort(labels.begin(), labels.end());
+        MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE = std::max(1, static_cast<int>(MAX_CONSTRAINTS_PER_ROUND * ((double)labels.size() / MIN_CONSTRAINTS_PER_ROUND)));
 
         // Check if there are still constraints to be added...
         if (labels.size() < 3) continue;
@@ -162,16 +174,16 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
             return false;
         }
 
-        std::vector<LeafPair> pairs = generateLeafPairs(solutionRoot, mafSolution);
-        if (pairs.size() > 0)
-        {
-            n_constraints = checkPathPairConstraints(n_constraints, ConstraintCheckType::Linear, pairs, forestData_sol);
-            if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
-            {
-                std::cout << "#r constraints: " << n_constraints << std::endl;
-                return false;
-            }
-        }
+        // std::vector<LeafPair> pairs = generateLeafPairs(solutionRoot, mafSolution);
+        // if (pairs.size() > 0)
+        // {
+        //     n_constraints = checkPathPairConstraints(n_constraints, ConstraintCheckType::Linear, pairs, forestData_sol);
+        //     if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
+        //     {
+        //         std::cout << "#r constraints: " << n_constraints << std::endl;
+        //         return false;
+        //     }
+        // }
 
         n_constraints = checkTripleConstraints(n_constraints, labels, ConstraintCheckType::All, forestData_sol); 
         if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
@@ -319,7 +331,7 @@ int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<
                 {
                     generateTripleConstraint(labels[i], labels[i+1], labels[i+2]);
                     n_constraints++;
-                    if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
+                    if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE)
                         return -1;
                 }
             }
@@ -343,7 +355,7 @@ int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<
                 {
                     generateTripleConstraint(labels[i], labels[j], labels[k]);
                     n_constraints++;
-                    if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
+                    if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE)
                         return -1;
                     usedLeaves.insert(labels[i]);
                     usedLeaves.insert(labels[j]);
@@ -369,7 +381,7 @@ int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<
                         {
                             generateTripleConstraint(labels[i], labels[j], labels[k]);
                             n_constraints++;
-                            if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND)
+                            if (n_constraints >= MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE)
                                 return -1;
                         }
                     }

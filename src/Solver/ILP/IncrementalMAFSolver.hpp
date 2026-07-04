@@ -73,6 +73,9 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \brief Max Number of Constraints added to Solver in each round.
         int MAX_CONSTRAINTS_PER_ROUND;
         int MIN_CONSTRAINTS_PER_ROUND;
+        int MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE;
+
+        int currentLB;
 
         /// \brief stores all applied rules of the current branch in the order in which they were applied.
         ///std::list<std::shared_ptr<DeleteEdgeAction>> appliedActions = std::list<std::shared_ptr<DeleteEdgeAction>>();
