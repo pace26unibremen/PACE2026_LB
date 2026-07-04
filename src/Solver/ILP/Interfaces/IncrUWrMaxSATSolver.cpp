@@ -1,7 +1,6 @@
 #include "IncrUWrMaxSATSolver.hpp"
 
 #include "../../../../lib/UWrMaxSat/uwrmaxsat/ipamir.h"
-#include "ipamir.h"
 
 #include <cassert>
 #include <chrono>
@@ -10,6 +9,9 @@
 
 namespace solver {
 
+IncrUWrMaxSATSolver::IncrUWrMaxSATSolver(std::chrono::steady_clock::time_point future) 
+        :  future(future)
+{}
 IncrUWrMaxSATSolver::~IncrUWrMaxSATSolver()
 {
     if (solver_ipamir) ipamir_release(solver_ipamir);
@@ -21,17 +23,16 @@ int terminationFunction(void * time)
 
     std::chrono::steady_clock::time_point* deadline = static_cast<std::chrono::steady_clock::time_point*>(time);
 
-
     if (*deadline < std::chrono::steady_clock::now())
+    {
         return 1;
+    }
 
     return 0;
 }
 
-void IncrUWrMaxSATSolver::stampSolver(double seconds)
+void IncrUWrMaxSATSolver::stampSolver()
 {
-    future =  std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::time_point::duration>(std::chrono::duration<double>(seconds));
-
     if (solver_ipamir) ipamir_set_terminate(solver_ipamir, &future, terminationFunction);
 }
 
@@ -85,9 +86,9 @@ ILPSolution IncrUWrMaxSATSolver::solve(int numVars)
 
     // Output unterdrücken...
     auto start = std::chrono::high_resolution_clock::now();
-    std::streambuf* oldBuf = std::cout.rdbuf(nullptr);
+    //std::streambuf* oldBuf = std::cout.rdbuf(nullptr);
     int result = ipamir_solve(solver_ipamir);
-    std::cout.rdbuf(oldBuf);
+    //std::cout.rdbuf(oldBuf);
     auto end = std::chrono::high_resolution_clock::now();
     double timeSec = std::chrono::duration_cast<std::chrono::duration<double>>(end - start).count();
     std::cout << "#r solve_time: " << timeSec << "s" << std::endl;

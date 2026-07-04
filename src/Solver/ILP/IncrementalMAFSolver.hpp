@@ -67,7 +67,7 @@ class IncrementalMAFSolver : public AbstractSolver
         ForestData forestData_2;
 
         /// \brief Data of Second Tree (Forest) of binary MAF-Problem.
-        double timeOutDelay = 30;
+        double timeOutDelay = 60;
 
         /// \brief Set for checking if triple-constraints are already added to solver.
         std::unordered_set<std::string> addedTripleConstraints;
@@ -83,7 +83,7 @@ class IncrementalMAFSolver : public AbstractSolver
 
         /// \brief Creates the concrete ILP solver based on solverType.
         /// \param solverType The solver type to create.
-        void buildSolver(MaxSATSolverType solverType);
+        void buildSolver(MaxSATSolverType solverType, std::chrono::steady_clock::time_point future);
 
         /// \brief Checks wether the current solution is a correct MAF.
         /// \param mafSolution Current Solution.
@@ -186,7 +186,7 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \brief Returns the current best LowerBound.
         /// \return the current LowerBound. 
         int getCurrentLowerBound();
-        
+
         void setTimeOut(double time);
 
 };

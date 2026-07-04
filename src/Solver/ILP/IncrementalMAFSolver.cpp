@@ -59,13 +59,14 @@ int IncrementalMAFSolver::getCurrentLowerBound()
 bool IncrementalMAFSolver::solve()
 {   
     auto start = std::chrono::high_resolution_clock::now();
+    auto future =  std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::time_point::duration>(std::chrono::duration<double>(timeOutDelay));
 
     // Important Variables:
     int cnt_rounds = 1;
     int numVars = getNumVars(*forestData_1.forestPtr);
 
     // Inititalise Solver for first round...
-    buildSolver(MaxSATSolverType::UWrMaxSAT);
+    buildSolver(MaxSATSolverType::UWrMaxSAT, future);
     if (constraints.size() > 0)
     {
         for (auto constraint : constraints)
@@ -77,12 +78,16 @@ bool IncrementalMAFSolver::solve()
     {
         addInitialConstraints();
     }
-    
+
     while (true)
     {
+        if (future < std::chrono::steady_clock::now())
+            return false;
+
         ILPSolution sol = solver->solve(numVars);
         if (!sol.feasible)
             return false;
+            
         auto cutEdges = extractCutEdges(sol);
         auto mafSolution = reconstructMAF(cutEdges, false);
 
@@ -103,7 +108,7 @@ bool IncrementalMAFSolver::solve()
         }
         
         // Trick: As the IPAMIR-API gives back faulty values, we reinitialise the solver every round, with the collected constraints...
-        buildSolver(MaxSATSolverType::UWrMaxSAT);
+        buildSolver(MaxSATSolverType::UWrMaxSAT, future);
         for (auto constraint : constraints)
         {
             solver->addHardClause(constraint, true);
@@ -115,13 +120,13 @@ bool IncrementalMAFSolver::solve()
 }
 
 
-void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
+void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType, std::chrono::steady_clock::time_point future)
 {
     // Build & Initialise Solver...
     switch(solverType)
     {
         case MaxSATSolverType::UWrMaxSAT:
-            solver = std::make_unique<IncrUWrMaxSATSolver>();
+            solver = std::make_unique<IncrUWrMaxSATSolver>(future);
             break;
 
         // case MaxSATSolverType::EvalMaxSAT:
@@ -133,7 +138,7 @@ void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType)
     }
 
     solver->initSolver(forestData_1.nodeToIndex.size());
-    solver->stampSolver(timeOutDelay);
+    solver->stampSolver();
 
 
     // Add Soft Constraints...

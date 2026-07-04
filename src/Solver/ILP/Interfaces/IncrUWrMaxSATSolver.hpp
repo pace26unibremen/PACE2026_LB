@@ -12,7 +12,7 @@ class IncrUWrMaxSATSolver : public AbstractIncrementalSolver
 public:
 
 
-    IncrUWrMaxSATSolver() = default;
+    IncrUWrMaxSATSolver(std::chrono::steady_clock::time_point future);
     ~IncrUWrMaxSATSolver() override;
 
     void initSolver(int numVars) override;
@@ -21,7 +21,7 @@ public:
     void addAssumptions(const std::vector<double>& solValues) override;
     ILPSolution solve(int numVars) override;
 
-    void stampSolver(double seconds);
+    void stampSolver();
 
 
 private:
