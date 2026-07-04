@@ -368,6 +368,13 @@ int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints, Constraint
 
 void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigned int label2, unsigned int label3)
 {
+    std::array<unsigned int, 3> arr = {label1, label2, label3};
+    std::sort(arr.begin(), arr.end());
+    std::string key = std::to_string(arr[0]) + "," + std::to_string(arr[1]) + "," + std::to_string(arr[2]);
+    
+    if (!addedTripleConstraints.insert(key).second)
+        return;
+
     std::vector<int> edgesij = getPath(label1, label2, forestData_1);
     std::vector<int> edgesjk = getPath(label2, label3, forestData_1);
     std::vector<int> edgesik = getPath(label1, label3, forestData_1);
@@ -395,6 +402,13 @@ void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigne
 void IncrementalMAFSolver::generatePathPairConstraint(unsigned int lpair1, unsigned int rpair1, 
                                                       unsigned int lpair2, unsigned int rpair2)
 {
+    std::array<unsigned int, 4> arr = {lpair1, rpair1, lpair2, rpair2};
+    std::sort(arr.begin(), arr.end());
+    std::string key = std::to_string(arr[0]) + "," + std::to_string(arr[1]) + "," + std::to_string(arr[2]) + "," + std::to_string(arr[3]);
+    
+    if (!addedPathPairConstraints.insert(key).second)
+        return;
+
     std::vector<int> edgesij = getPath(lpair1, rpair1, forestData_1);
     std::vector<int> edgespq = getPath(lpair2, rpair2, forestData_1);
 

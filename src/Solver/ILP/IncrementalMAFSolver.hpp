@@ -26,6 +26,7 @@ enum class MaxSATSolverType {
 
 enum class ConstraintCheckType {
     Linear,
+    LinearCovering,
     All,
 };
 
@@ -46,6 +47,7 @@ class IncrementalMAFSolver : public AbstractSolver
     
     static constexpr std::array<ConstraintCheckType,3> ALL_CHECK_TYPES= {
         ConstraintCheckType::Linear,
+        ConstraintCheckType::LinearCovering,
         ConstraintCheckType::All
     };
 
@@ -55,6 +57,7 @@ class IncrementalMAFSolver : public AbstractSolver
 
         /// \brief Vector of Constraints for reinitialisation of UWrMaxSAT Solver
         std::vector<std::vector<int>> constraints;
+
         /// \brief Counter for total number of constraints...
         int cnt_constraints;
 
@@ -65,6 +68,11 @@ class IncrementalMAFSolver : public AbstractSolver
         ForestData forestData_1;
         /// \brief Data of Second Tree (Forest) of binary MAF-Problem.
         ForestData forestData_2;
+
+        /// \brief Set for checking if triple-constraints are already added to solver.
+        std::unordered_set<std::string> addedTripleConstraints;
+        /// \brief Set for checking if pathpair-constraints are already added to solver.
+        std::unordered_set<std::string> addedPathPairConstraints;
 
         /// \brief stores all applied rules of the current branch in the order in which they were applied.
         ///std::list<std::shared_ptr<DeleteEdgeAction>> appliedActions = std::list<std::shared_ptr<DeleteEdgeAction>>();
