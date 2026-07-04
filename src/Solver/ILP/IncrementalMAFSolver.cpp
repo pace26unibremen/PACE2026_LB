@@ -23,7 +23,7 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
     forestData_2 = buildForestData((*instance)[1]);
     cnt_constraints = 0;
     int numLeaves = forestData_1.labelToTerminal.size();
-    MAX_CONSTRAINTS_PER_ROUND = numLeaves * 10;
+    MAX_CONSTRAINTS_PER_ROUND = numLeaves;
     std::cout << "#r MAX CONSTRAINTS PER ROUND: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
     MIN_CONSTRAINTS_PER_ROUND = numLeaves;
     std::cout << "#r MIN CONSTRAINTS PER ROUND: " << MIN_CONSTRAINTS_PER_ROUND << "\n" << std::endl;
@@ -67,6 +67,7 @@ bool IncrementalMAFSolver::solve()
         ++cnt_rounds;
         std::cout << "#r Round: " << cnt_rounds << std::endl;
         auto start_round = std::chrono::high_resolution_clock::now();
+        MAX_CONSTRAINTS_PER_ROUND *= cnt_rounds;
 
         if (checkMAF(mafSolution))
         {
