@@ -1,20 +1,21 @@
 #ifndef PACE2026_INCREMENTALILPSOLVER_HPP
 #define PACE2026_INCREMENTALILPSOLVER_HPP
 
-#include "AbstractIncrementalSolver.hpp"
-#include "../Action/DeleteEdgeAction.hpp"
-#include "../Cluster/LeastCommonAncestor.hpp"
 #include "../../Graph/Forest.hpp"
 #include "../../Graph/Instance.hpp"
 #include "../AbstractSolver.hpp"
+#include "../Action/DeleteEdgeAction.hpp"
+#include "../Cluster/LeastCommonAncestor.hpp"
 #include "../Context.hpp"
+#include "AbstractIncrementalSolver.hpp"
 #include "ILPModel.hpp"
+#include "Interfaces/IncrUWrMaxSATSolver.hpp"
 
-#include <unordered_map>
-#include <tuple>
-#include <vector>
-#include <memory>
 #include <array>
+#include <memory>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 namespace solver {
 
@@ -58,12 +59,15 @@ class IncrementalMAFSolver : public AbstractSolver
         int cnt_constraints;
 
         /// \brief The Incremental MaxSAT solver.
-        std::unique_ptr<AbstractIncrementalSolver> solver;
+        std::unique_ptr<IncrUWrMaxSATSolver> solver;
 
         /// \brief Data of First Tree (Forest) of binary MAF-Problem.
         ForestData forestData_1;
         /// \brief Data of Second Tree (Forest) of binary MAF-Problem.
         ForestData forestData_2;
+
+        /// \brief Data of Second Tree (Forest) of binary MAF-Problem.
+        double timeOutDelay = 30;
 
         /// \brief Set for checking if triple-constraints are already added to solver.
         std::unordered_set<std::string> addedTripleConstraints;
@@ -181,6 +185,9 @@ class IncrementalMAFSolver : public AbstractSolver
         /// \brief Solves the instance.
         /// \returns true if solve was successful, otherwise false.
         bool solve() override;
+
+        void setTimeOut(double time);
+
 };
 
 }  // namespace solver

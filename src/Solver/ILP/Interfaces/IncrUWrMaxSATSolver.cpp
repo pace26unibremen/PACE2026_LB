@@ -1,10 +1,12 @@
 #include "IncrUWrMaxSATSolver.hpp"
+
+#include "../../../../lib/UWrMaxSat/uwrmaxsat/ipamir.h"
 #include "ipamir.h"
 
 #include <cassert>
 #include <chrono>
-#include <limits>
 #include <iostream>
+#include <limits>
 
 namespace solver {
 
@@ -12,6 +14,28 @@ IncrUWrMaxSATSolver::~IncrUWrMaxSATSolver()
 {
     if (solver_ipamir) ipamir_release(solver_ipamir);
 }
+
+
+int terminationFunction(void * time)
+{
+
+    std::chrono::steady_clock::time_point* deadline = static_cast<std::chrono::steady_clock::time_point*>(time);
+
+
+    if (*deadline < std::chrono::steady_clock::now())
+        return 1;
+
+    return 0;
+}
+
+void IncrUWrMaxSATSolver::stampSolver(double seconds)
+{
+    future =  std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::time_point::duration>(std::chrono::duration<double>(seconds));
+
+    if (solver_ipamir) ipamir_set_terminate(solver_ipamir, &future, terminationFunction);
+}
+
+
 
 void IncrUWrMaxSATSolver::initSolver(int numVars)
 {
