@@ -77,9 +77,6 @@ class IncrementalMAFSolver : public AbstractSolver
 
         int currentLB;
 
-        /// \brief stores all applied rules of the current branch in the order in which they were applied.
-        ///std::list<std::shared_ptr<DeleteEdgeAction>> appliedActions = std::list<std::shared_ptr<DeleteEdgeAction>>();
-
         /// \brief Creates the concrete ILP solver based on solverType.
         /// \param solverType The solver type to create.
         void buildSolver(MaxSATSolverType solverType);
@@ -179,8 +176,12 @@ class IncrementalMAFSolver : public AbstractSolver
         IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance, const std::shared_ptr<solver::Context>& context);
 
         /// \brief Solves the instance.
-        /// \returns true if solve was successful, otherwise false.
+        /// \return true if solve was successful, otherwise false.
         bool solve() override;
+
+        /// \brief Returns the current best LowerBound.
+        /// \return the current LowerBound. 
+        int getCurrentLowerBound();
 };
 
 }  // namespace solver

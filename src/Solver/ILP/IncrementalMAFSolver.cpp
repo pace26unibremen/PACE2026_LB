@@ -49,6 +49,10 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
     currentLB = 0;
 }
 
+int IncrementalMAFSolver::getCurrentLowerBound()
+{
+    return currentLB;
+}
 // =============================================================================
 // solve
 // =============================================================================
@@ -62,12 +66,23 @@ bool IncrementalMAFSolver::solve()
 
     // Inititalise Solver for first round...
     buildSolver(MaxSATSolverType::UWrMaxSAT);
-    addInitialConstraints();
-
+    if (constraints.size() > 0)
+    {
+        for (auto constraint : constraints)
+        {
+            solver->addHardClause(constraint, true);
+        }
+    }
+    else
+    {
+        addInitialConstraints();
+    }
+    
     while (true)
     {
         ILPSolution sol = solver->solve(numVars);
-        currentLB = sol.objValue;
+        if (!sol.feasible)
+            return false;
         auto cutEdges = extractCutEdges(sol);
         auto mafSolution = reconstructMAF(cutEdges, false);
 
