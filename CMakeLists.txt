@@ -37,5 +37,12 @@ set(CMAKE_CXX_FLAGS_PROFILING  "${CMAKE_CXX_FLAGS_PROFILING}  -O2 -g -gline-tabl
 
 add_subdirectory(lib)
 add_subdirectory(src)
-add_subdirectory(tests)
+
+# Tests pull in Catch2 via FetchContent (network). The competition submission build
+# in a Debian container must configure offline and only needs `startSolver`, so allow
+# skipping the whole tests tree with -DBUILD_TESTING=OFF (default ON for development).
+option(BUILD_TESTING "Build the Catch2 test suite (fetches Catch2)" ON)
+if(BUILD_TESTING)
+    add_subdirectory(tests)
+endif()
 

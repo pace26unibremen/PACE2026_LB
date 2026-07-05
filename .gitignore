@@ -11,3 +11,4 @@ debug/
 incremental/
 Launch*
 *.sh
+!docker_setup.sh
