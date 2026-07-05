@@ -1,5 +1,4 @@
 #include "Solver/ILP/IncrementalMAFSolver.hpp"
-#include "Solver/ILP/MAFILPSolver.hpp"
 #include "Solver/BranchingSolver.hpp"
 #include "Solver/Cluster/ClusterSolver.hpp"
 #include "Solver/Cluster/ClusterRange.hpp"
@@ -250,27 +249,6 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                     solverList.push_back(solver);
                     solver->solve();
                     clusterSolver = solver.get();
-                    break;
-                }
-                case solver::SolverConfig::SolverType::MaxSAT:
-                {
-                    if (clusterSolver)
-                    {
-                        bool allClustersSolved = true;
-                        for (const auto& [cluster, context] : clusterSolver->Clusters())
-                        {
-                            auto solver = std::make_shared<solver::MAFILPSolver>(cluster, solver::ILPSolverType::UWrMaxSAT, context);
-                            solverList.push_back(solver);
-                            allClustersSolved &= solver->solve();
-                        }
-                        solved = allClustersSolved;
-                    }
-                    else 
-                    {
-                        auto solver = std::make_shared<solver::MAFILPSolver>(instance, solver::ILPSolverType::UWrMaxSAT);
-                        solverList.push_back(solver);
-                        solved = solver->solve();
-                    }
                     break;
                 }
                 case solver::SolverConfig::SolverType::IncrMaxSAT:

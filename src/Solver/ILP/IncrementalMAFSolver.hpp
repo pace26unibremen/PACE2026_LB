@@ -8,9 +8,8 @@
 #include "../Cluster/LeastCommonAncestor.hpp"
 #include "../Context.hpp"
 #include "../IIncrementalLowerBound.hpp"
-#include "AbstractIncrementalSolver.hpp"
 #include "ILPModel.hpp"
-#include "Interfaces/IncrUWrMaxSATSolver.hpp"
+#include "IncrUWrMaxSATSolver.hpp"
 
 #include <array>
 #include <memory>
@@ -62,7 +61,7 @@ class IncrementalMAFSolver : public AbstractSolver, public IIncrementalLowerBoun
         ForestData forestData_2;
 
         /// \brief Data of Second Tree (Forest) of binary MAF-Problem.
-        double timeOutDelay = 60;
+        double timeOutDelay = 30;
 
         /// \brief Set for checking if triple-constraints are already added to solver.
         std::unordered_set<std::string> addedTripleConstraints;
@@ -71,14 +70,16 @@ class IncrementalMAFSolver : public AbstractSolver, public IIncrementalLowerBoun
 
         /// \brief Max Number of Constraints added to Solver in each round.
         int MAX_CONSTRAINTS_PER_ROUND;
+        /// \brief Min Number of Constraints added to Solver in each round.
         int MIN_CONSTRAINTS_PER_ROUND;
+        /// \brief Max Number of Constraints added to Solver in each round per subtree.
         int MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE;
 
+        /// \brief Current best solution...
         int currentLB;
 
         /// \brief Creates the concrete ILP solver based on solverType.
-        /// \param solverType The solver type to create.
-        void buildSolver(std::chrono::steady_clock::time_point future);
+        void buildSolver();
 
         /// \brief Checks wether the current solution is a correct MAF.
         /// \param mafSolution Current Solution.
@@ -180,6 +181,8 @@ class IncrementalMAFSolver : public AbstractSolver, public IIncrementalLowerBoun
         /// \return the current LowerBound.
         int getCurrentLowerBound() override;
 
+        /// \brief Sets the current timeout for solver.
+        /// \param time Timeout interval.
         void setTimeOut(double time) override;
 
 };

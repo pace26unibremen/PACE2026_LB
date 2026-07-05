@@ -77,7 +77,6 @@ struct SolverConfig
         Branching, ///< Branching + reduction rules solver (\ref BranchingSolver).
         Reduction, ///< Subtree Reduction (\ref ReductionSolver).
         Cluster,   ///< Cluster Reduction (\ref ClusterSolver).
-        MaxSAT, ///< MaxSAT Solver (\ref MAFILPSolver).
         IncrMaxSAT ///< Incremental MaxSAT Solver (\ref IncrementalMAFSolver).
     };
 

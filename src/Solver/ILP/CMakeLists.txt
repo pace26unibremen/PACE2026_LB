@@ -1,13 +1,9 @@
 # src/Solver/ILP/CMakeLists.txt
 set(ilp_sources
-    ILPConstraintUtils.cpp
-    ILPFormulation.cpp
     ILPModel.cpp
     TreeUtils.cpp
-    MAFILPSolver.cpp
     IncrementalMAFSolver.cpp
-    Interfaces/UWrMaxSatSolver.cpp
-    Interfaces/IncrUWrMaxSATSolver.cpp
+    IncrUWrMaxSATSolver.cpp
 )
 
 target_sources(Solver PRIVATE ${ilp_sources})

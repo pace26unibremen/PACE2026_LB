@@ -3,9 +3,6 @@
 #include "../../Graph/Node.hpp"
 #include "TreeUtils.hpp"
 
-// Solver-Header...
-#include "Interfaces/IncrUWrMaxSATSolver.hpp"
-
 #include <cassert>
 #include <stdexcept> 
 #include <iostream>
@@ -24,9 +21,7 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
     cnt_constraints = 0;
     int numLeaves = forestData_1.labelToTerminal.size();
     MAX_CONSTRAINTS_PER_ROUND = numLeaves;
-    std::cout << "#r MAX CONSTRAINTS PER ROUND: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
     MIN_CONSTRAINTS_PER_ROUND = numLeaves;
-    std::cout << "#r MIN CONSTRAINTS PER ROUND: " << MIN_CONSTRAINTS_PER_ROUND << "\n" << std::endl;
     MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE = numLeaves;
     currentLB = 0;
 
@@ -42,17 +37,11 @@ IncrementalMAFSolver::IncrementalMAFSolver(const std::shared_ptr<graph::Instance
     cnt_constraints = 0;
     int numLeaves = forestData_1.labelToTerminal.size();
     MAX_CONSTRAINTS_PER_ROUND = numLeaves;
-    std::cout << "#r MAX CONSTRAINTS PER ROUND: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
     MIN_CONSTRAINTS_PER_ROUND = numLeaves;
-    std::cout << "#r MIN CONSTRAINTS PER ROUND: " << MIN_CONSTRAINTS_PER_ROUND << "\n" << std::endl;
     MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE = numLeaves;
     currentLB = 0;
 }
 
-int IncrementalMAFSolver::getCurrentLowerBound()
-{
-    return currentLB;
-}
 // =============================================================================
 // solve
 // =============================================================================
@@ -66,7 +55,7 @@ bool IncrementalMAFSolver::solve()
     int numVars = getNumVars(*forestData_1.forestPtr);
 
     // Initialise Solver for first round...
-    buildSolver(future);
+    buildSolver();
     if (constraints.size() > 0)
     {
         for (auto constraint : constraints)
@@ -92,16 +81,9 @@ bool IncrementalMAFSolver::solve()
         auto cutEdges = extractCutEdges(sol);
         auto mafSolution = reconstructMAF(cutEdges, false);
 
-        auto timepoint = std::chrono::high_resolution_clock::now();
-        double timeSec = std::chrono::duration_cast<std::chrono::duration<double>>(timepoint - start).count();
-        std::cout << "#r time passed: " << timeSec << "s \n" << std::endl;
-
         ++cnt_rounds;
-        std::cout << "#r Round: " << cnt_rounds << std::endl;
-        auto start_round = std::chrono::high_resolution_clock::now();
-        MAX_CONSTRAINTS_PER_ROUND = std::min(static_cast<int>(10*MIN_CONSTRAINTS_PER_ROUND), static_cast<int> (MAX_CONSTRAINTS_PER_ROUND * (0.25 * cnt_rounds)));
-        std::cout << "#r MAX CONSTRAINTS PER ROUND: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
-
+        MAX_CONSTRAINTS_PER_ROUND = std::min(static_cast<int>(10*MIN_CONSTRAINTS_PER_ROUND), static_cast<int> (MAX_CONSTRAINTS_PER_ROUND * (0.1 * cnt_rounds)));
+        
         if (checkMAF(mafSolution))
         {
             std::cout << "#r end \n \n" << "==================================== \n" << std::endl;
@@ -109,47 +91,20 @@ bool IncrementalMAFSolver::solve()
             return true;
         }
         
-        // Trick: As the IPAMIR-API gives back faulty values, we reinitialise the solver every round, with the collected constraints...
-        buildSolver(future);
+        buildSolver();
         for (auto constraint : constraints)
         {
             solver->addHardClause(constraint, true);
         }
-        auto end_round = std::chrono::high_resolution_clock::now();
-        double timeSecRound = std::chrono::duration_cast<std::chrono::duration<double>>(end_round - start_round).count();
-        std::cout << "#r build_time: " << timeSecRound << "s" << std::endl;
     }
 }
 
 
-void IncrementalMAFSolver::buildSolver(std::chrono::steady_clock::time_point future)
+void IncrementalMAFSolver::buildSolver()
 {
     // Build & Initialise Solver...
-    solver = std::make_unique<IncrUWrMaxSATSolver>(future);
+    solver = std::make_unique<IncrUWrMaxSATSolver>();
     solver->initSolver(forestData_1.nodeToIndex.size());
-    solver->stampSolver();
-
-
-    // Add Soft Constraints...
-    if (context)
-    {
-        unsigned int rootLabel = context->clusterRootLabel;
-        if (rootLabel != 0)
-        {
-            int rootIndex = forestData_1.nodeToIndex.at(forestData_1.labelToTerminal.at(rootLabel));
-            for(const auto& [_, index] : forestData_1.nodeToIndex) 
-            {
-                if (index == rootIndex) {
-                    solver->addSoftClause(index, 0.5); 
-                } 
-                else 
-                {
-                    solver->addSoftClause(index, 1.0);  
-                }
-            }
-            return;
-        }
-    }
 
     for(const auto& [_, index] : forestData_1.nodeToIndex) 
     {
@@ -167,7 +122,6 @@ void IncrementalMAFSolver::buildSolver(std::chrono::steady_clock::time_point fut
 bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
 {
     int n_constraints = 0;
-    bool pathpair = false;
     auto forestData_sol = buildForestData(mafSolution);
 
     for (const graph::Node* solutionRoot : mafSolution->Roots())
@@ -177,7 +131,6 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
         int subtreeConstraints = 0;
         MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE = std::max(1, static_cast<int>(MAX_CONSTRAINTS_PER_ROUND * ((double)labels.size() / MIN_CONSTRAINTS_PER_ROUND)));
 
-        // Check if there are still constraints to be added...
         if (labels.size() < 3) continue;
 
         subtreeConstraints = checkTripleConstraints(subtreeConstraints, labels, ConstraintCheckType::Coverage, forestData_sol);
@@ -187,17 +140,6 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
             n_constraints += MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE;
             continue;
         }
-
-        // std::vector<LeafPair> pairs = generateLeafPairs(solutionRoot, mafSolution);
-        // if (pairs.size() > 0)
-        // {
-        //     n_constraints = checkPathPairConstraints(n_constraints, ConstraintCheckType::Linear, pairs, forestData_sol);
-        //     if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
-        //     {
-        //         std::cout << "#r constraints: " << n_constraints << std::endl;
-        //         return false;
-        //     }
-        // }
 
         subtreeConstraints = checkTripleConstraints(subtreeConstraints, labels, ConstraintCheckType::All, forestData_sol); 
         if (subtreeConstraints < 0)
@@ -213,26 +155,17 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
     if (n_constraints < MIN_CONSTRAINTS_PER_ROUND)
     {   
         std::vector<LeafPair> pairs = generateLeafPairs(mafSolution);
-        pathpair = true;
-        std::cout << "#r No more triple constraints - checking pathpair constraints..." << std::endl;
         for (auto type : ALL_CHECK_TYPES)
         {
             n_constraints = checkPathPairConstraints(n_constraints, type, pairs, forestData_sol);
             if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
-            {
-                std::cout << "#r constraints: " << n_constraints << std::endl;
                 return false;
-            }
+            
         }
     }
     
-    if (n_constraints > 0)
-    {
-        std::cout << "#r constraints: " << n_constraints << std::endl;
-        if (pathpair)
-            std::cout << "#r Pathpair constraints used! " << std::endl;
-        return false;
-    }
+    if (n_constraints > 0) return false;
+
     return true;
 }
 
@@ -265,7 +198,6 @@ std::shared_ptr<graph::Forest> IncrementalMAFSolver::reconstructMAF(std::vector<
     
     for (int edgeIndex : cutEdges)
     {
-        // Edge (Node) should be available...
         assert(indexToNode.count(edgeIndex) > 0.5);
         graph::Node* child = indexToNode.at(edgeIndex);
         DeleteEdgeAction action(child, forestPtr);
@@ -274,19 +206,8 @@ std::shared_ptr<graph::Forest> IncrementalMAFSolver::reconstructMAF(std::vector<
     return forestPtr;
 }
 
-// void IncrementalMAFSolver::restoreForest()
-// {
-//     if (!appliedActions.empty())
-//     {
-//         for (auto& action : appliedActions)
-//             action->undoAction();
-//         appliedActions.clear();
-//     }
-// }
-
 void IncrementalMAFSolver::addInitialConstraints()
 {
-    std::cout << "#r Round: 1" << std::endl;
     int n_constraints = 0;
     std::vector<unsigned int> labels;
     for (const auto& [_, label] : (*forestData_1.forestPtr).TerminalToLabel())
@@ -316,8 +237,6 @@ void IncrementalMAFSolver::addInitialConstraints()
             n_constraints++; 
         }
     }
-    std::cout << "#r constraints: " << n_constraints << std::endl;
-    std::cout << "#r Pathpair constraints used! " << std::endl;
 }
 
 int IncrementalMAFSolver::checkTripleConstraints(int n_constraints, std::vector<unsigned int> labels, ConstraintCheckType type,
@@ -422,13 +341,12 @@ int IncrementalMAFSolver::checkPathPairConstraints(int n_constraints, Constraint
         }
         case ConstraintCheckType::Coverage:
         {
-            std::unordered_set<int> usedPairs;  // Index des Pairs
+            std::unordered_set<int> usedPairs;
             int i = 0;
             int j = 1;
             
             while (j < pairs.size())
             {
-                // Überspringe bereits genutzte Pairs
                 while (i < pairs.size() && usedPairs.count(i)) i++;
                 while (j < pairs.size() && (j <= i || usedPairs.count(j))) j++;
                 
@@ -505,14 +423,12 @@ void IncrementalMAFSolver::generateTripleConstraint(unsigned int label1, unsigne
     std::vector<int> edgesjk = getPath(label2, label3, forestData_1);
     std::vector<int> edgesik = getPath(label1, label3, forestData_1);
 
-    // Union of all paths...
     std::vector<int> triPathEdges;
     triPathEdges.reserve(edgesij.size() + edgesjk.size() + edgesik.size());
     triPathEdges.insert(triPathEdges.end(), edgesij.begin(), edgesij.end());
     triPathEdges.insert(triPathEdges.end(), edgesjk.begin(), edgesjk.end());
     triPathEdges.insert(triPathEdges.end(), edgesik.begin(), edgesik.end());
     
-    // Make Sure the union of set is unique...
     std::sort(triPathEdges.begin(), triPathEdges.end());
     triPathEdges.erase(
         std::unique(triPathEdges.begin(), triPathEdges.end()),
@@ -560,21 +476,17 @@ std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPa
 
     for (auto root : mafSolution->Roots())
     {
-        // Leaves dieses Subtrees sammeln
         std::vector<unsigned int> subtreeLabels = getSubtreeLabels(root, mafSolution);
         int n = subtreeLabels.size();
 
-        // n=1: ignorieren
         if (n <= 1) continue;
 
-        // n=2: genau ein Paar
         if (n == 2)
         {
             pairs.push_back({subtreeLabels[0], subtreeLabels[1]});
             continue;
         }
 
-        // n>2: alle internen Paare
         for (int i = 0; i < n; ++i)
             for (int j = i+1; j < n; ++j)
                 pairs.push_back({subtreeLabels[i], subtreeLabels[j]});
@@ -586,21 +498,17 @@ std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPa
 std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPairs(const graph::Node* rootNode, const std::shared_ptr<graph::Forest>& mafSolution)
 {
     std::vector<LeafPair> pairs;
-    // Leaves dieses Subtrees sammeln
     std::vector<unsigned int> subtreeLabels = getSubtreeLabels(rootNode, mafSolution);
     int n = subtreeLabels.size();
 
-    // n=1: ignorieren
     if (n <= 1) return pairs;
 
-    // n=2: genau ein Paar
     if (n == 2)
     {
         pairs.push_back({subtreeLabels[0], subtreeLabels[1]});
         return pairs;
     }
 
-    // n>2: alle internen Paare
     for (int i = 0; i < n; ++i)
         for (int j = i+1; j < n; ++j)
             pairs.push_back({subtreeLabels[i], subtreeLabels[j]});
@@ -611,7 +519,7 @@ std::vector<IncrementalMAFSolver::LeafPair> IncrementalMAFSolver::generateLeafPa
 void recGetSubtreeLabels(const graph::Node* n, std::vector<unsigned int>& labels, const std::shared_ptr<graph::Forest>& forest)
 {
     if (!n) return;
-    if (!n->leftChild)  // Blatt = kein linkes Kind
+    if (!n->leftChild)
         labels.push_back(forest->TerminalToLabel().at(const_cast<graph::Node*>(n)));
     recGetSubtreeLabels(n->leftChild, labels, forest);
     recGetSubtreeLabels(n->rightChild, labels, forest);
@@ -631,6 +539,10 @@ void IncrementalMAFSolver::setTimeOut(double time)
     timeOutDelay = time;
 }
 
+int IncrementalMAFSolver::getCurrentLowerBound()
+{
+    return currentLB;
+}
 
 
 }  // namespace solver
