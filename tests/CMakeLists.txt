@@ -46,6 +46,10 @@ target_link_libraries(BranchingSolverSimpleTests PRIVATE Solver Graph Catch2::Ca
 add_test(NAME BranchingSolverSimpleTests COMMAND $<TARGET_FILE:BranchingSolverSimpleTests>)
 target_compile_definitions(BranchingSolverSimpleTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
 
+add_executable(BranchingSolverPauseResumeTests BranchingSolverPauseResumeTests.cpp)
+target_link_libraries(BranchingSolverPauseResumeTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME BranchingSolverPauseResumeTests COMMAND $<TARGET_FILE:BranchingSolverPauseResumeTests>)
+
 add_executable(TwoBRuleTests TwoBRuleTests.cpp)
 target_link_libraries(TwoBRuleTests PRIVATE Solver Graph Catch2::Catch2WithMain)
 add_test(NAME TwoBRuleTests COMMAND $<TARGET_FILE:TwoBRuleTests>)

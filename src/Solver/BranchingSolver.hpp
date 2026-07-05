@@ -6,6 +6,7 @@
 #include "Context.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <queue>
 
 namespace solver
@@ -108,6 +109,42 @@ class BranchingSolver : public AbstractSolver
     /// solve() stops at the next branch rollback and returns the best solution found so far.
     /// Pass nullptr to disable. Returns false if no solution existed when the flag fired.
     void setTimeoutFlag(std::atomic<bool>* flag);
+
+    /// \brief Why advanceSearch() stopped.
+    enum class RunResult
+    {
+        Solved,     ///< Certified early-exit or exact optimum found.
+        Paused,     ///< Soft pause deadline reached; state preserved, resumable.
+        Exhausted,  ///< Search tree fully explored; incumbent is the true optimum.
+    };
+
+    /// \brief Arm a soft pause deadline. When reached, advanceSearch() returns Paused at the top of
+    /// the loop WITHOUT unwinding, so a later advanceSearch() resumes exactly where it stopped.
+    /// Pass steady_clock::time_point::max() to disable. Re-armed before every slice by the coordinator.
+    void setPauseDeadline(std::chrono::steady_clock::time_point deadline);
+
+    /// \brief Run the branch-and-bound loop until it Solves, is Exhausted, or hits the pause deadline.
+    /// Does NOT materialise a solution into the instance. Safe to call repeatedly to resume.
+    RunResult advanceSearch();
+
+    /// \brief Unwind any in-progress branch and replay solutionBranch into the instance, producing the
+    /// best solution found. Call once when the coordinator is done. No-op replay if no solution exists.
+    void finalize();
+
+  protected:
+    /// \brief Soft pause deadline (coordinator). Sentinel max() = disabled.
+    std::chrono::steady_clock::time_point pauseDeadline = std::chrono::steady_clock::time_point::max();
+
+    /// \brief One-time guard so plugin->init() / context init run only on the first advanceSearch().
+    bool searchStarted = false;
+
+    /// \brief Throttle for the wall-clock read on the pause path (see timeExpired-style amortisation).
+    static constexpr int kClockCheckStride = 1024;
+    mutable int clockCheckCountdown = 0;
+    mutable bool pauseDeadlinePassed = false;
+
+    /// \brief True once pauseDeadline has passed (throttled read). SIGTERM is handled separately.
+    [[nodiscard]] bool pauseReached() const;
 };
 
 }  //namespace solver

@@ -32,6 +32,36 @@ void solver::BranchingSolver::setTimeoutFlag(std::atomic<bool>* flag)
     timeoutFlag = flag;
 }
 
+void solver::BranchingSolver::setPauseDeadline(std::chrono::steady_clock::time_point deadline)
+{
+    this->pauseDeadline = deadline;
+    this->pauseDeadlinePassed = false;
+    this->clockCheckCountdown = 0;
+}
+
+bool solver::BranchingSolver::pauseReached() const
+{
+    if (pauseDeadlinePassed)
+    {
+        return true;
+    }
+    if (pauseDeadline == std::chrono::steady_clock::time_point::max())
+    {
+        return false;
+    }
+    if (clockCheckCountdown == 0)
+    {
+        clockCheckCountdown = kClockCheckStride;
+        // Written as `not (now < deadline)` rather than `now >= deadline`: Global.h (force-included
+        // for the UWrMaxSat backend) defines a generic operator>= for any T, which is ambiguous with
+        // std::chrono::time_point's own operator>= (see IncrementalMAFSolver.cpp for the same idiom).
+        pauseDeadlinePassed = not (std::chrono::steady_clock::now() < pauseDeadline);
+        return pauseDeadlinePassed;
+    }
+    --clockCheckCountdown;
+    return false;
+}
+
 void solver::BranchingSolver::seedSolution(std::list<std::shared_ptr<AbstractRule>> branch, float weight)
 {
     solutionBranch = std::move(branch);
@@ -166,11 +196,22 @@ const std::shared_ptr<solver::Context>& solver::BranchingSolver::GetContext()
     return context;
 }
 
-bool solver::BranchingSolver::solve()
+solver::BranchingSolver::RunResult solver::BranchingSolver::advanceSearch()
 {
-    for (const auto& plugin : configuration->plugins) plugin->init(instance, context);
+    if (not searchStarted)
+    {
+        for (const auto& plugin : configuration->plugins) plugin->init(instance, context);
+        searchStarted = true;
+    }
 
     // apply rules repeatedly until a return is triggerd
+    // Tracks whether this invocation has applied at least one rule yet. The coordinator re-arms the
+    // pause deadline immediately before every call (even with an already-past deadline, e.g. to force
+    // a prompt pause), so the pause check alone must not fire before any work has been done this call —
+    // otherwise a persistently-expired deadline would livelock the search with zero forward progress
+    // across calls. Certified/timeout are unaffected: they reflect stable state set once (not re-armed
+    // every call), so honouring them on the very first iteration is safe and matches the pre-split solve().
+    bool madeProgressThisCall = false;
     while (true)
     {
         // Certified early exit (lower-bound track): stop the moment the incumbent's size is within the
@@ -181,14 +222,22 @@ bool solver::BranchingSolver::solve()
         const bool certified = configuration->certifiedEarlyExit && not solutionBranch.empty()
             && context->bestSolutionWeight <= static_cast<float>(context->certifiedThreshold);
 
+        if (certified)
+        {
+            return RunResult::Solved;             // do NOT unwind; finalize() handles output
+        }
+
         // On timeout, stop before starting a new iteration — but only once at
         // least one solution candidate has been found.  Without one, keep
         // searching so the solver always produces output within the grace period.
-        if ((timeoutFlag && timeoutFlag->load(std::memory_order_relaxed) && not solutionBranch.empty())
-            || certified)
+        if (timeoutFlag && timeoutFlag->load(std::memory_order_relaxed) && not solutionBranch.empty())
         {
-            unwindAppliedRules();
-            break;
+            return RunResult::Solved;             // SIGTERM: treat as stop-with-solution
+        }
+
+        if (madeProgressThisCall && pauseReached())
+        {
+            return RunResult::Paused;             // preserve all state, resume later
         }
 
         std::shared_ptr<AbstractRule> rule = nullptr;
@@ -215,6 +264,7 @@ bool solver::BranchingSolver::solve()
         const auto returnCode = rule->apply();
         for (const auto& plugin : configuration->plugins) plugin->onApply(rule);
         appliedRules.push_back(rule);
+        madeProgressThisCall = true;
 
         bool calculationFinished = false;
         switch (returnCode)
@@ -231,8 +281,9 @@ bool solver::BranchingSolver::solve()
                 if (configuration->boundedDephtSearch)
                 {
                     for (const auto& plugin : configuration->plugins) plugin->onBranchEnd();
-                    for (const auto& plugin : configuration->plugins) plugin->onEnd();
-                    return true;
+                    // onEnd() is deferred to finalize() so it fires exactly once, whether
+                    // solve() calls it immediately or a coordinator calls it later.
+                    return RunResult::Solved;
                 }
                 else
                 {
@@ -260,24 +311,50 @@ bool solver::BranchingSolver::solve()
             }
             else
             {
-                break;
+                return RunResult::Exhausted;
             }
         }
     }
+}
 
-    // Reached when the search space is fully explored (unbounded depth) or when the
-    // timeout flag fires. Write out the best solution found, if any.
-    // solution may be nullptr when SIGTERM arrives before any candidate is found.
-
-    // apply solution branch
-    if (not solutionBranch.empty())
+void solver::BranchingSolver::finalize()
+{
+    // Reached when the search space is fully explored (unbounded depth), when the
+    // timeout flag fires, or when the coordinator is done with a paused/certified search.
+    // Unwind any half-explored in-progress branch first, then write out the best solution
+    // found, if any. solution may be nullptr when SIGTERM arrives before any candidate is found.
+    //
+    // Bounded-depth mode never populates solutionBranch: its EndBranchWithSolutionCandidate return
+    // in advanceSearch() leaves the solution materialised directly in the instance, with appliedRules
+    // holding exactly the rules that produced it. Unwinding here would undo that solution, so this
+    // mode skips straight to onEnd().
+    if (not configuration->boundedDephtSearch)
     {
-        for (const auto& r : solutionBranch)
+        unwindAppliedRules();
+        if (not solutionBranch.empty())
         {
-            appliedRules.push_back(r);
-            r->apply();
+            for (const auto& r : solutionBranch)
+            {
+                appliedRules.push_back(r);
+                r->apply();
+            }
         }
     }
     for (const auto& plugin : configuration->plugins) plugin->onEnd();
+}
+
+bool solver::BranchingSolver::solve()
+{
+    // no pause deadline armed by default -> advanceSearch() only ever returns Solved or Exhausted here.
+    const RunResult result = advanceSearch();
+    finalize();
+
+    // Bounded-depth mode never populates solutionBranch (see finalize()): its success is exactly
+    // "advanceSearch() reported Solved", since that path materialises the answer directly in the
+    // instance. Other modes keep the original contract of "did we ever record a solutionBranch".
+    if (configuration->boundedDephtSearch)
+    {
+        return result == RunResult::Solved;
+    }
     return not solutionBranch.empty();
 }
