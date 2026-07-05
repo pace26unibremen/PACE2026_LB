@@ -221,7 +221,16 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                 {
                     auto solver = std::make_shared<solver::IncrementalMAFSolver>(instance);
                     solverList.push_back(solver);
-                    solved = solver->solve();
+                    int i = 2;
+                    while (!solved)
+                    {
+                        solved = solver->solve();
+                        std :: cout << "========================= \n" <<
+                            "     Current LB: " << solver->getCurrentLowerBound() << "    \n" <<
+                            "========================= \n" << std::endl;
+                        solver->setTimeOut(30*i);
+                        i++;
+                    }
                 }
                 break;
             }

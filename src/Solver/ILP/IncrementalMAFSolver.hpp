@@ -19,12 +19,6 @@
 
 namespace solver {
 
-/// \brief Available MaxSAT solver.
-enum class MaxSATSolverType {
-    UWrMaxSAT,
-    EvalMaxSAT
-};
-
 enum class ConstraintCheckType {
     Linear,
     Coverage,
@@ -83,7 +77,7 @@ class IncrementalMAFSolver : public AbstractSolver
 
         /// \brief Creates the concrete ILP solver based on solverType.
         /// \param solverType The solver type to create.
-        void buildSolver(MaxSATSolverType solverType, std::chrono::steady_clock::time_point future);
+        void buildSolver(std::chrono::steady_clock::time_point future);
 
         /// \brief Checks wether the current solution is a correct MAF.
         /// \param mafSolution Current Solution.
@@ -170,12 +164,10 @@ class IncrementalMAFSolver : public AbstractSolver
     public:
         /// \brief Constructor.
         /// \param instance The instance to solve.
-        /// \param solverType The ILP solver to use.
         IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance);
 
         /// \brief Constructor.
         /// \param instance The instance to solve.
-        /// \param solverType The ILP solver to use.
         /// \param context additional context for the instance
         IncrementalMAFSolver(const std::shared_ptr<graph::Instance>& instance, const std::shared_ptr<solver::Context>& context);
 

@@ -1,5 +1,7 @@
 #include "LowerBoundSolver.hpp"
 
+#include <cmath>
+
 namespace solver {
 
 // Constructor 
@@ -14,7 +16,18 @@ LowerBoundSolver::LowerBoundSolver (const std::shared_ptr<graph::Instance>& inst
 
 bool LowerBoundSolver::solve()
 {
-    // TODO
+    bool solved = false;
+    int i = 1;
+    while (!solved)
+    {
+        // branchingSolver->SetTimeout(i*30); oder so ähnlich...
+        solved = branchingSolver->solve();
+        maxsatSolver->setTimeOut(30.0*i);
+        maxsatSolver->solve();
+        int maxsatLB = static_cast<int> (std::floor((context->a * maxsatSolver->getCurrentLowerBound()) + context->b));
+
+
+    }
     // Funktionscalls für maxsatSolver:
     // maxsatSolver->solve();
     // maxsatSolver->setTimeOut(double second);

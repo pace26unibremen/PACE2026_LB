@@ -65,8 +65,8 @@ bool IncrementalMAFSolver::solve()
     int cnt_rounds = 1;
     int numVars = getNumVars(*forestData_1.forestPtr);
 
-    // Inititalise Solver for first round...
-    buildSolver(MaxSATSolverType::UWrMaxSAT, future);
+    // Initialise Solver for first round...
+    buildSolver(future);
     if (constraints.size() > 0)
     {
         for (auto constraint : constraints)
@@ -87,7 +87,8 @@ bool IncrementalMAFSolver::solve()
         ILPSolution sol = solver->solve(numVars);
         if (!sol.feasible)
             return false;
-            
+        currentLB = sol.objValue + 1;
+
         auto cutEdges = extractCutEdges(sol);
         auto mafSolution = reconstructMAF(cutEdges, false);
 
@@ -98,7 +99,8 @@ bool IncrementalMAFSolver::solve()
         ++cnt_rounds;
         std::cout << "#r Round: " << cnt_rounds << std::endl;
         auto start_round = std::chrono::high_resolution_clock::now();
-        MAX_CONSTRAINTS_PER_ROUND *= cnt_rounds;
+        MAX_CONSTRAINTS_PER_ROUND = std::min(static_cast<int>(10*MIN_CONSTRAINTS_PER_ROUND), static_cast<int> (MAX_CONSTRAINTS_PER_ROUND * (0.25 * cnt_rounds)));
+        std::cout << "#r MAX CONSTRAINTS PER ROUND: " << MAX_CONSTRAINTS_PER_ROUND << std::endl;
 
         if (checkMAF(mafSolution))
         {
@@ -108,7 +110,7 @@ bool IncrementalMAFSolver::solve()
         }
         
         // Trick: As the IPAMIR-API gives back faulty values, we reinitialise the solver every round, with the collected constraints...
-        buildSolver(MaxSATSolverType::UWrMaxSAT, future);
+        buildSolver(future);
         for (auto constraint : constraints)
         {
             solver->addHardClause(constraint, true);
@@ -120,23 +122,10 @@ bool IncrementalMAFSolver::solve()
 }
 
 
-void IncrementalMAFSolver::buildSolver(MaxSATSolverType solverType, std::chrono::steady_clock::time_point future)
+void IncrementalMAFSolver::buildSolver(std::chrono::steady_clock::time_point future)
 {
     // Build & Initialise Solver...
-    switch(solverType)
-    {
-        case MaxSATSolverType::UWrMaxSAT:
-            solver = std::make_unique<IncrUWrMaxSATSolver>(future);
-            break;
-
-        // case MaxSATSolverType::EvalMaxSAT:
-        //     solver = std::make_unique<IncrEvalMaxSATSolver>();
-        //     break;
-        
-        default:
-            throw std::invalid_argument("IncrementalMAFSolver: Unknown ILP solver type");
-    }
-
+    solver = std::make_unique<IncrUWrMaxSATSolver>(future);
     solver->initSolver(forestData_1.nodeToIndex.size());
     solver->stampSolver();
 
@@ -185,15 +174,18 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
     {
         std::vector<unsigned int> labels = getSubtreeLabels(solutionRoot, mafSolution);
         std::sort(labels.begin(), labels.end());
+        int subtreeConstraints = 0;
         MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE = std::max(1, static_cast<int>(MAX_CONSTRAINTS_PER_ROUND * ((double)labels.size() / MIN_CONSTRAINTS_PER_ROUND)));
 
         // Check if there are still constraints to be added...
         if (labels.size() < 3) continue;
-        n_constraints = checkTripleConstraints(n_constraints, labels, ConstraintCheckType::Coverage, forestData_sol); 
-        if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
+
+        subtreeConstraints = checkTripleConstraints(subtreeConstraints, labels, ConstraintCheckType::Coverage, forestData_sol);
+
+        if (subtreeConstraints < 0)
         {
-            std::cout << "#r constraints: " << n_constraints << std::endl;
-            return false;
+            n_constraints += MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE;
+            continue;
         }
 
         // std::vector<LeafPair> pairs = generateLeafPairs(solutionRoot, mafSolution);
@@ -207,28 +199,16 @@ bool IncrementalMAFSolver::checkMAF(std::shared_ptr<graph::Forest>& mafSolution)
         //     }
         // }
 
-        n_constraints = checkTripleConstraints(n_constraints, labels, ConstraintCheckType::All, forestData_sol); 
-        if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
+        subtreeConstraints = checkTripleConstraints(subtreeConstraints, labels, ConstraintCheckType::All, forestData_sol); 
+        if (subtreeConstraints < 0)
         {
-            std::cout << "#r constraints: " << n_constraints << std::endl;
-            return false;
+            n_constraints += MAX_CONSTRAINTS_PER_ROUND_PER_SUBTREE;
+            continue;
         }
+
+        n_constraints += subtreeConstraints;
     }
 
-    for (const graph::Node* solutionRoot : mafSolution->Roots())
-    {   
-        std::vector<unsigned int> labels = getSubtreeLabels(solutionRoot, mafSolution);
-        std::sort(labels.begin(), labels.end());
-
-        // Check if there are still constraints to be added...
-        if (labels.size() < 3) continue;
-        n_constraints = checkTripleConstraints(n_constraints, labels, ConstraintCheckType::All, forestData_sol); 
-        if (n_constraints < 0 || n_constraints > MIN_CONSTRAINTS_PER_ROUND)
-        {
-            std::cout << "#r constraints: " << n_constraints << std::endl;
-            return false;
-        }
-    }
 
     if (n_constraints < MIN_CONSTRAINTS_PER_ROUND)
     {   

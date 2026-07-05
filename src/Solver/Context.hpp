@@ -65,6 +65,15 @@ struct Context
     /// \brief A heuristic order of labels for solver to find applicable rules.
     /// It should be initialized by the solver.
     std::list<unsigned int> heuristicLabelOrder = {};
+
+    /// \brief Constant a used to calculate the accepted range of solutions (a*opt + b).
+    /// Relevant only for the Lower-Bound track.
+    float a = -1;
+
+    /// \brief Constant b used to calculate the accepted range of solutions (a*opt + b).
+    /// Relevant only for the Lower-Bound track.
+    int b = -1;
+
 };
 
 }  //namespace solver
