@@ -224,7 +224,10 @@ struct SolverConfig
         SolverConfig c;
         c.track = Track::LowerBound;
         c.solverPipeline = {SolverType::Reduction, SolverType::Branching};
-        c.enableSigterm = true;
+        c.enableSigterm = false;
+        // Stop and emit the incumbent as soon as it is certified valid against floor(a*L)+b. This is the
+        // strategy switch; startSolver computes the certified lower bound L and fills Context::certifiedThreshold.
+        c.branchingConfig.certifiedEarlyExit = true;
         return c;
     }
 };

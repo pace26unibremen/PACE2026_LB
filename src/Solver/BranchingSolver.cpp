@@ -173,10 +173,19 @@ bool solver::BranchingSolver::solve()
     // apply rules repeatedly until a return is triggerd
     while (true)
     {
+        // Certified early exit (lower-bound track): stop the moment the incumbent's size is within the
+        // certified threshold floor(a*L)+b (L <= k*), a provably valid answer. Read straight from the
+        // config flag and the current incumbent weight each iteration — no separate state to track. The
+        // threshold defaults to -1, which no positive size meets, so this is inert unless armed. The seed
+        // case is covered too: on the very first iteration the incumbent is the seeded approximation.
+        const bool certified = configuration->certifiedEarlyExit && not solutionBranch.empty()
+            && context->bestSolutionWeight <= static_cast<float>(context->certifiedThreshold);
+
         // On timeout, stop before starting a new iteration — but only once at
         // least one solution candidate has been found.  Without one, keep
         // searching so the solver always produces output within the grace period.
-        if (timeoutFlag && timeoutFlag->load(std::memory_order_relaxed) && not solutionBranch.empty())
+        if ((timeoutFlag && timeoutFlag->load(std::memory_order_relaxed) && not solutionBranch.empty())
+            || certified)
         {
             unwindAppliedRules();
             break;

@@ -7,9 +7,20 @@
 
 #include "Forest.hpp"
 #include "ForestIO.hpp"
+// Context lives one layer up in Solver, but the lower-bound-track "#a {a} {b}" constants are read here
+// alongside "#p" (which this function already parses), so ReadInstance fills them straight into the
+// Context rather than making startSolver re-scan the stream. Only the definition is needed (to write the
+// fields); Instance.hpp forward-declares solver::Context so callers don't pull Solver in.
+#include "../Solver/Context.hpp"
 
 
 std::shared_ptr<graph::Instance> graph::ReadInstance(const std::filesystem::path& path)
+{
+    return ReadInstance(path, nullptr);
+}
+
+std::shared_ptr<graph::Instance> graph::ReadInstance(const std::filesystem::path& path,
+                                                     const std::shared_ptr<solver::Context>& context)
 {
     if (path.empty())
     {
@@ -20,20 +31,41 @@ std::shared_ptr<graph::Instance> graph::ReadInstance(const std::filesystem::path
     {
         throw std::invalid_argument("Instance : ReadInstance : unable to open file");
     }
-    return ReadInstance(file);
+    return ReadInstance(file, context);
     // File stream will be closed when going out of scope
 }
 std::shared_ptr<graph::Instance> graph::ReadInstance(std::istream& inputStream)
+{
+    return ReadInstance(inputStream, nullptr);
+}
+
+std::shared_ptr<graph::Instance> graph::ReadInstance(std::istream& inputStream,
+                                                     const std::shared_ptr<solver::Context>& context)
 {
     auto result = std::make_shared<Instance>();
     int numberOfForests = -1;
     int numberOfTerminals = -1;
     // Use regex to find #p {t} {n} in the input stream, that provides the number of trees (t) and terminals (n)
     static const std::regex regex_header = std::regex(R"(#p\s(\d+)\s(\d+)\s*)");
+    // Use regex to find the lower-bound-track "#a {a} {b}" line, providing the validity constants a
+    // (a real >= 1, one or more decimal digits) and b (a non-negative integer). The dot is escaped and
+    // the fractional part optional so the pattern only matches a genuine decimal, unlike the original
+    // "(\d+.\d+)" whose unescaped '.' matched any character.
+    static const std::regex regex_constants = std::regex(R"(#a\s+(\d+(?:\.\d+)?)\s+(\d+)\s*)");
     std::smatch match;
     std::string line;
     while(std::getline(inputStream, line))
     {
+        // The "#a" line may appear before or after "#p"; parse it whenever we see it, but only
+        // stop scanning the header once "#p" (which the two forests follow) has been found.
+        if (context && std::regex_match(line, match, regex_constants))
+        {
+            // a is stored as a double; the validity-boundary floor is done in Context::certifiedCeiling,
+            // which corrects for binary-float rounding.
+            context->a = std::stod(match[1].str());
+            context->b = std::stoi(match[2]);
+            continue;
+        }
         // If match is found, extract number of forests and terminals
         // If match is found, extract number of forests and terminals
         if (std::regex_match(line, match, regex_header))

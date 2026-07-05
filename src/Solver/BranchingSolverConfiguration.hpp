@@ -39,6 +39,14 @@ struct BranchingSolverConfiguration
     /// The corresponding parameter is stored in the \ref Context as \ref Context::maxSolutionSize.
     bool boundedDephtSearch = false;
 
+    /// \brief Whether the search may stop early once its incumbent is certified valid (lower-bound track).
+    /// When true, the solver stops and emits the incumbent as soon as its size is within the certified
+    /// threshold \ref Context::certifiedThreshold (a provably valid answer). This is a *strategy* switch,
+    /// deliberately separate from whether the instance carries "#a {a} {b}" constants: an instance may
+    /// supply a/b yet still be solved with, say, a heuristic strategy that leaves this off. Only the
+    /// lower-bound preset turns it on; default false leaves exact/heuristic search unchanged.
+    bool certifiedEarlyExit = false;
+
     /// \brief vector of the isApplicable function of rules.
     /// It defines which rules are used and in which order they are checked for applicability.
     std::vector<isApplicableFn> activeRules = {

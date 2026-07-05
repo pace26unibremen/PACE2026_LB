@@ -3,6 +3,8 @@
 #include "Solver/BranchingSolver.hpp"
 #include "Solver/Cluster/ClusterSolver.hpp"
 #include "Solver/Cluster/ClusterRange.hpp"
+#include "Solver/Context.hpp"
+#include "Solver/DualLowerBound.hpp"
 #include "Solver/Plugin/SigtermPlugin.hpp"
 #include "Solver/ReductionSolver.hpp"
 #include "Solver/SolverConfig.hpp"
@@ -67,7 +69,30 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
            && "Exact track must never enable SIGTERM");
 
     const auto startTime = std::clock();
-    const auto instance = graph::ReadInstance(in);
+
+    // A context carried across the whole solve. On the lower-bound track it also holds the parsed
+    // "#a {a} {b}" validity constants and the certified early-exit threshold; on other tracks its
+    // extra fields stay at their unset defaults and it behaves like any freshly-constructed context.
+    auto lowerBoundContext = std::make_shared<solver::Context>();
+    const auto instance = graph::ReadInstance(in, lowerBoundContext);
+
+    // ---- Certified early exit (lower-bound track) ------------------------------------------------
+    // On the lower-bound track, compute a certified lower bound L <= k* from the 3-approximation's LP
+    // dual (on the pristine instance, before reductions) and turn it into the acceptance threshold
+    // floor(a*L)+b. The branching solver then stops and emits its incumbent the instant the incumbent's
+    // size is <= this threshold — a provably valid answer, often the approximation seed itself. Only done
+    // when a genuine "#a" line was parsed (a >= 1, b >= 0); otherwise the threshold stays at its -1
+    // default, which no positive size ever meets, so the search simply never certifies.
+    if (config.track == solver::SolverConfig::Track::LowerBound
+        && lowerBoundContext->a >= 1.0 && lowerBoundContext->b >= 0)
+    {
+        const long L = solver::computeDual3ApproxLowerBound(*instance);
+        lowerBoundContext->certifiedThreshold = lowerBoundContext->certifiedCeiling(L);
+        // Diagnostic (stderr, does not touch the solution stream): the certified lower bound and the
+        // acceptance threshold floor(a*L)+b the search may stop at.
+        std::clog << "#lb a=" << lowerBoundContext->a << " b=" << lowerBoundContext->b
+                  << " L=" << L << " threshold=" << lowerBoundContext->certifiedThreshold << "\n";
+    }
 
     // ---- Approximation-seeded branch & bound ------------------------------------------------
     // Before the real branch-and-bound search on an instance (or cluster), run the approximation
@@ -91,6 +116,15 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
         return {std::move(branch), size};
     };
 
+    // Stride/pipeline metrics line: the honest whole-instance approximation size. Run the same
+    // in-place approximation on the still-pristine instance (before the Reduction/Cluster stages
+    // decouple it) and discard the branch — it rolls straight back off the instance, so the real
+    // solve below is unaffected. Summing the per-cluster approximation sizes would instead double-
+    // count every shared cluster boundary (and can even exceed the leaf count).
+    std::optional<unsigned int> approxSize;
+    if (config.track == solver::SolverConfig::Track::Pipeline)
+        approxSize = seedFromApproximation(instance).second;
+
     bool solved = false;
 
     // all solvers that worked on the solution
@@ -112,7 +146,6 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                         std::make_shared<solver::plugin::SigtermPlugin>(&g_timeout, out));
                 }
 #endif
-                unsigned int approxSize = 0;
                 if (clusterSolver)
                 {
                     // Each cluster is an independent sub-instance solved by its own BranchingSolver;
@@ -122,7 +155,6 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                     for (const auto& [cluster, context] : clusterSolver->Clusters())
                     {
                         auto [branch, size] = seedFromApproximation(cluster);
-                        approxSize += size;  // whole-instance approx = sum over independent clusters
 
                         auto branchingConfig = std::make_shared<solver::BranchingSolverConfiguration>(config.branchingConfig);
                         auto solver = std::make_shared<solver::BranchingSolver>(cluster, branchingConfig, context);
@@ -141,10 +173,11 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                 else
                 {
                     auto [branch, size] = seedFromApproximation(instance);
-                    approxSize = size;
 
                     auto branchingConfig = std::make_shared<solver::BranchingSolverConfiguration>(config.branchingConfig);
-                    auto solver = std::make_shared<solver::BranchingSolver>(instance, branchingConfig);
+                    // Pass lowerBoundContext so the certified early-exit threshold (armed above on the
+                    // lower-bound track) reaches the search. On other tracks it is a default context.
+                    auto solver = std::make_shared<solver::BranchingSolver>(instance, branchingConfig, lowerBoundContext);
                     solver->seedSolution(std::move(branch), static_cast<float>(size));
 #ifdef   _POSIX_VERSION
                     if (config.enableSigterm)
@@ -157,11 +190,11 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                 }
 
                 // Pipeline/CI runs report the approximation size next to the exact solution so the
-                // stride harness can track approximation quality. Reuses the size already computed for
-                // seeding (no separate recomputation).
+                // stride harness can track approximation quality. Measured on the pristine instance
+                // above, before the pipeline reduced/decoupled it.
                 if (config.track == solver::SolverConfig::Track::Pipeline)
                 {
-                    out << "#s approx {\"size\":" << approxSize
+                    out << "#s approx {\"size\":" << approxSize.value_or(0)
                         << ",\"trees\":" << instance->size()
                         << ",\"applicable\":true}\n";
                     out.flush();

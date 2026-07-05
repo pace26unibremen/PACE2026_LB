@@ -83,6 +83,11 @@ target_link_libraries(ApproximationTests PRIVATE Solver Graph Catch2::Catch2With
 add_test(NAME ApproximationTests COMMAND $<TARGET_FILE:ApproximationTests>)
 target_compile_definitions(ApproximationTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
 
+add_executable(DualLowerBoundTests DualLowerBoundTests.cpp)
+target_link_libraries(DualLowerBoundTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME DualLowerBoundTests COMMAND $<TARGET_FILE:DualLowerBoundTests>)
+target_compile_definitions(DualLowerBoundTests PRIVATE RES_DIR="${CMAKE_SOURCE_DIR}/res/")
+
 add_executable(ApproximationConfigTests ApproximationConfigTests.cpp)
 target_link_libraries(ApproximationConfigTests PRIVATE Solver Graph Catch2::Catch2WithMain)
 add_test(NAME ApproximationConfigTests COMMAND $<TARGET_FILE:ApproximationConfigTests>)
