@@ -50,6 +50,10 @@ add_executable(BranchingSolverPauseResumeTests BranchingSolverPauseResumeTests.c
 target_link_libraries(BranchingSolverPauseResumeTests PRIVATE Solver Graph Catch2::Catch2WithMain)
 add_test(NAME BranchingSolverPauseResumeTests COMMAND $<TARGET_FILE:BranchingSolverPauseResumeTests>)
 
+add_executable(LowerBoundCoordinatorTests LowerBoundCoordinatorTests.cpp)
+target_link_libraries(LowerBoundCoordinatorTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME LowerBoundCoordinatorTests COMMAND $<TARGET_FILE:LowerBoundCoordinatorTests>)
+
 add_executable(TwoBRuleTests TwoBRuleTests.cpp)
 target_link_libraries(TwoBRuleTests PRIVATE Solver Graph Catch2::Catch2WithMain)
 add_test(NAME TwoBRuleTests COMMAND $<TARGET_FILE:TwoBRuleTests>)
