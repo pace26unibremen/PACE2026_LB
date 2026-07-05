@@ -5,6 +5,7 @@
 #include "Solver/Cluster/ClusterRange.hpp"
 #include "Solver/Context.hpp"
 #include "Solver/DualLowerBound.hpp"
+#include "Solver/LowerBoundSolver.hpp"
 #include "Solver/Plugin/SigtermPlugin.hpp"
 #include "Solver/ReductionSolver.hpp"
 #include "Solver/SolverConfig.hpp"
@@ -132,32 +133,77 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
     // stores the cluster solver (and the access to the clusters) that may be part of the pipeline
     solver::ClusterSolver* clusterSolver = nullptr;
 
-    for (auto solverType : config.solverPipeline)
+    // ---- Lower-bound track: drive the coordinator instead of the pipeline switch ------------------
+    // Only when a genuine "#a" line was parsed (a >= 1, b >= 0) is there a validity target to certify
+    // against; the certified threshold for it was already computed above. Without it, fall through to
+    // the ordinary pipeline switch below (Reduction + Branching, same as the heuristic track).
+    if (config.track == solver::SolverConfig::Track::LowerBound
+        && lowerBoundContext->a >= 1.0 && lowerBoundContext->b >= 0)
     {
-        switch (solverType)
+        auto branchingConfig = std::make_shared<solver::BranchingSolverConfiguration>(config.branchingConfig);
+        branchingConfig->certifiedEarlyExit = true;
+        auto branching = std::make_shared<solver::BranchingSolver>(instance, branchingConfig, lowerBoundContext);
+
+        // Seed the incumbent from the approximation so a valid forest always exists to emit.
+        auto [branch, size] = seedFromApproximation(instance);
+        branching->seedSolution(std::move(branch), static_cast<float>(size));
+
+        auto sat = std::make_shared<solver::IncrementalMAFSolver>(instance, lowerBoundContext);
+
+        solver::LowerBoundSolver coordinator(instance, branching, sat);
+        solved = coordinator.solve();
+
+        branching->unapplyReductions();
+        // Fall through to the shared output block below.
+    }
+    else
+    {
+        for (auto solverType : config.solverPipeline)
         {
-            case solver::SolverConfig::SolverType::Branching:
+            switch (solverType)
             {
-
-#ifdef _POSIX_VERSION
-                if (config.enableSigterm) {
-                    std::signal(SIGTERM, sigtermHandler);
-                    config.branchingConfig.plugins.push_back(
-                        std::make_shared<solver::plugin::SigtermPlugin>(&g_timeout, out));
-                }
-#endif
-                if (clusterSolver)
+                case solver::SolverConfig::SolverType::Branching:
                 {
-                    // Each cluster is an independent sub-instance solved by its own BranchingSolver;
-                    // seed each one from an in-place approximation on that (already reduced & decoupled)
-                    // cluster. No Forest::copy, so this is safe on the cluster's fragile pointers.
-                    bool allClustersSolved = true;
-                    for (const auto& [cluster, context] : clusterSolver->Clusters())
+    
+#ifdef _POSIX_VERSION
+                    if (config.enableSigterm) {
+                        std::signal(SIGTERM, sigtermHandler);
+                        config.branchingConfig.plugins.push_back(
+                            std::make_shared<solver::plugin::SigtermPlugin>(&g_timeout, out));
+                    }
+#endif
+                    if (clusterSolver)
                     {
-                        auto [branch, size] = seedFromApproximation(cluster);
-
+                        // Each cluster is an independent sub-instance solved by its own BranchingSolver;
+                        // seed each one from an in-place approximation on that (already reduced & decoupled)
+                        // cluster. No Forest::copy, so this is safe on the cluster's fragile pointers.
+                        bool allClustersSolved = true;
+                        for (const auto& [cluster, context] : clusterSolver->Clusters())
+                        {
+                            auto [branch, size] = seedFromApproximation(cluster);
+    
+                            auto branchingConfig = std::make_shared<solver::BranchingSolverConfiguration>(config.branchingConfig);
+                            auto solver = std::make_shared<solver::BranchingSolver>(cluster, branchingConfig, context);
+                            solver->seedSolution(std::move(branch), static_cast<float>(size));
+#ifdef   _POSIX_VERSION
+                            if (config.enableSigterm)
+                            {
+                                solver->setTimeoutFlag(&g_timeout);
+                            }
+#endif
+                            solverList.push_back(solver);
+                            allClustersSolved &= solver->solve();
+                        }
+                        solved = allClustersSolved;
+                    }
+                    else
+                    {
+                        auto [branch, size] = seedFromApproximation(instance);
+    
                         auto branchingConfig = std::make_shared<solver::BranchingSolverConfiguration>(config.branchingConfig);
-                        auto solver = std::make_shared<solver::BranchingSolver>(cluster, branchingConfig, context);
+                        // Pass lowerBoundContext so the certified early-exit threshold (armed above on the
+                        // lower-bound track) reaches the search. On other tracks it is a default context.
+                        auto solver = std::make_shared<solver::BranchingSolver>(instance, branchingConfig, lowerBoundContext);
                         solver->seedSolution(std::move(branch), static_cast<float>(size));
 #ifdef   _POSIX_VERSION
                         if (config.enableSigterm)
@@ -166,111 +212,92 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
                         }
 #endif
                         solverList.push_back(solver);
-                        allClustersSolved &= solver->solve();
-                    }
-                    solved = allClustersSolved;
-                }
-                else
-                {
-                    auto [branch, size] = seedFromApproximation(instance);
-
-                    auto branchingConfig = std::make_shared<solver::BranchingSolverConfiguration>(config.branchingConfig);
-                    // Pass lowerBoundContext so the certified early-exit threshold (armed above on the
-                    // lower-bound track) reaches the search. On other tracks it is a default context.
-                    auto solver = std::make_shared<solver::BranchingSolver>(instance, branchingConfig, lowerBoundContext);
-                    solver->seedSolution(std::move(branch), static_cast<float>(size));
-#ifdef   _POSIX_VERSION
-                    if (config.enableSigterm)
-                    {
-                        solver->setTimeoutFlag(&g_timeout);
-                    }
-#endif
-                    solverList.push_back(solver);
-                    solved = solver->solve();
-                }
-
-                // Pipeline/CI runs report the approximation size next to the exact solution so the
-                // stride harness can track approximation quality. Measured on the pristine instance
-                // above, before the pipeline reduced/decoupled it.
-                if (config.track == solver::SolverConfig::Track::Pipeline)
-                {
-                    out << "#s approx {\"size\":" << approxSize.value_or(0)
-                        << ",\"trees\":" << instance->size()
-                        << ",\"applicable\":true}\n";
-                    out.flush();
-                }
-                break;
-            }
-            case solver::SolverConfig::SolverType::Reduction:
-            {
-                auto solver = std::make_shared<solver::ReductionSolver>(instance);
-                solverList.push_back(solver);
-                solver->solve();
-                break;
-            }
-            case solver::SolverConfig::SolverType::Cluster:
-            {
-                auto solver = std::make_shared<solver::ClusterSolver>(instance);
-                solverList.push_back(solver);
-                solver->solve();
-                clusterSolver = solver.get();
-                break;
-            }
-            case solver::SolverConfig::SolverType::MaxSAT:
-            {
-                if (clusterSolver)
-                {
-                    bool allClustersSolved = true;
-                    for (const auto& [cluster, context] : clusterSolver->Clusters())
-                    {
-                        auto solver = std::make_shared<solver::MAFILPSolver>(cluster, solver::ILPSolverType::UWrMaxSAT, context);
-                        solverList.push_back(solver);
-                        allClustersSolved &= solver->solve();
-                    }
-                    solved = allClustersSolved;
-                }
-                else 
-                {
-                    auto solver = std::make_shared<solver::MAFILPSolver>(instance, solver::ILPSolverType::UWrMaxSAT);
-                    solverList.push_back(solver);
-                    solved = solver->solve();
-                }
-                break;
-            }
-            case solver::SolverConfig::SolverType::IncrMaxSAT:
-            {
-                if (clusterSolver)
-                {
-                    bool allClustersSolved = true;
-                    for (const auto& [cluster, context] : clusterSolver->Clusters())
-                    {
-                        auto solver = std::make_shared<solver::IncrementalMAFSolver>(cluster, context);
-                        solverList.push_back(solver);
-                        allClustersSolved &= solver->solve();
-                    }
-                    solved = allClustersSolved;
-                }
-                else 
-                {
-                    auto solver = std::make_shared<solver::IncrementalMAFSolver>(instance);
-                    solverList.push_back(solver);
-                    int i = 2;
-                    while (!solved)
-                    {
                         solved = solver->solve();
-                        std :: cout << "========================= \n" <<
-                            "     Current LB: " << solver->getCurrentLowerBound() << "    \n" <<
-                            "========================= \n" << std::endl;
-                        solver->setTimeOut(30*i);
-                        i++;
                     }
+    
+                    // Pipeline/CI runs report the approximation size next to the exact solution so the
+                    // stride harness can track approximation quality. Measured on the pristine instance
+                    // above, before the pipeline reduced/decoupled it.
+                    if (config.track == solver::SolverConfig::Track::Pipeline)
+                    {
+                        out << "#s approx {\"size\":" << approxSize.value_or(0)
+                            << ",\"trees\":" << instance->size()
+                            << ",\"applicable\":true}\n";
+                        out.flush();
+                    }
+                    break;
                 }
-                break;
-            }
-            default:
-            {
-                std::clog << "Solver pipeline contains unknown solver\n";
-                return;
+                case solver::SolverConfig::SolverType::Reduction:
+                {
+                    auto solver = std::make_shared<solver::ReductionSolver>(instance);
+                    solverList.push_back(solver);
+                    solver->solve();
+                    break;
+                }
+                case solver::SolverConfig::SolverType::Cluster:
+                {
+                    auto solver = std::make_shared<solver::ClusterSolver>(instance);
+                    solverList.push_back(solver);
+                    solver->solve();
+                    clusterSolver = solver.get();
+                    break;
+                }
+                case solver::SolverConfig::SolverType::MaxSAT:
+                {
+                    if (clusterSolver)
+                    {
+                        bool allClustersSolved = true;
+                        for (const auto& [cluster, context] : clusterSolver->Clusters())
+                        {
+                            auto solver = std::make_shared<solver::MAFILPSolver>(cluster, solver::ILPSolverType::UWrMaxSAT, context);
+                            solverList.push_back(solver);
+                            allClustersSolved &= solver->solve();
+                        }
+                        solved = allClustersSolved;
+                    }
+                    else 
+                    {
+                        auto solver = std::make_shared<solver::MAFILPSolver>(instance, solver::ILPSolverType::UWrMaxSAT);
+                        solverList.push_back(solver);
+                        solved = solver->solve();
+                    }
+                    break;
+                }
+                case solver::SolverConfig::SolverType::IncrMaxSAT:
+                {
+                    if (clusterSolver)
+                    {
+                        bool allClustersSolved = true;
+                        for (const auto& [cluster, context] : clusterSolver->Clusters())
+                        {
+                            auto solver = std::make_shared<solver::IncrementalMAFSolver>(cluster, context);
+                            solverList.push_back(solver);
+                            allClustersSolved &= solver->solve();
+                        }
+                        solved = allClustersSolved;
+                    }
+                    else 
+                    {
+                        auto solver = std::make_shared<solver::IncrementalMAFSolver>(instance);
+                        solverList.push_back(solver);
+                        int i = 2;
+                        while (!solved)
+                        {
+                            solved = solver->solve();
+                            std :: cout << "========================= \n" <<
+                                "     Current LB: " << solver->getCurrentLowerBound() << "    \n" <<
+                                "========================= \n" << std::endl;
+                            solver->setTimeOut(30*i);
+                            i++;
+                        }
+                    }
+                    break;
+                }
+                default:
+                {
+                    std::clog << "Solver pipeline contains unknown solver\n";
+                    return;
+                }
             }
         }
     }

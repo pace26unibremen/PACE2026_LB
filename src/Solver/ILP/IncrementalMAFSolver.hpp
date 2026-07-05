@@ -7,6 +7,7 @@
 #include "../Action/DeleteEdgeAction.hpp"
 #include "../Cluster/LeastCommonAncestor.hpp"
 #include "../Context.hpp"
+#include "../IIncrementalLowerBound.hpp"
 #include "AbstractIncrementalSolver.hpp"
 #include "ILPModel.hpp"
 #include "Interfaces/IncrUWrMaxSATSolver.hpp"
@@ -25,7 +26,7 @@ enum class ConstraintCheckType {
     All,
 };
 
-class IncrementalMAFSolver : public AbstractSolver
+class IncrementalMAFSolver : public AbstractSolver, public IIncrementalLowerBound
 {
     /// \brief Represents a LeafPair of a Solution for the MAF-Problem.
     /// \note this is used for computing the pathpair constraints across subtrees in the MAF.
@@ -176,10 +177,10 @@ class IncrementalMAFSolver : public AbstractSolver
         bool solve() override;
 
         /// \brief Returns the current best LowerBound.
-        /// \return the current LowerBound. 
-        int getCurrentLowerBound();
+        /// \return the current LowerBound.
+        int getCurrentLowerBound() override;
 
-        void setTimeOut(double time);
+        void setTimeOut(double time) override;
 
 };
 

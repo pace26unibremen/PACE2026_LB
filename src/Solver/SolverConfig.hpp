@@ -212,13 +212,19 @@ struct SolverConfig
         return c;
     }
 
-    /// \brief Reserved placeholder for the lower-bound competition track.
+    /// \brief Preset for the PACE lower-bound competition track.
     ///
-    /// No lower-bound solver exists yet.  The preset is defined now to reserve
-    /// the name and avoid a breaking API change once the implementation is
-    /// added (issue #55).
+    /// When the instance carries a genuine "#a {a} {b}" validity line, \c runOnStream (startSolver.cpp)
+    /// bypasses \c solverPipeline entirely and instead builds a \ref solver::LowerBoundSolver coordinator
+    /// that time-slices a \ref solver::BranchingSolver (shrinks the incumbent upper bound) against a real
+    /// \ref solver::IncrementalMAFSolver (raises a certified lower bound), seeded by the 3-approximation's
+    /// LP dual and its incumbent solution. \c solverPipeline below is therefore only a fallback used when
+    /// no "#a" line is present (identical to the heuristic track: Reduction then Branching).
     ///
-    /// \throws std::logic_error always.
+    /// SIGTERM is disabled: the coordinator budgets its own wall-clock schedule
+    /// (\ref solver::LowerBoundCoordinatorConfig) instead of being interrupted externally.
+    ///
+    /// \return A \c SolverConfig ready for the lower-bound competition track.
     static SolverConfig lowerBoundTrack()
     {
         SolverConfig c;

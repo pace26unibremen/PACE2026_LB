@@ -4,6 +4,7 @@
 #include "AbstractSolver.hpp"
 #include "BranchingSolver.hpp"
 #include "Context.hpp"
+#include "IIncrementalLowerBound.hpp"
 #include "LowerBoundCoordinatorConfig.hpp"
 #include "../Graph/Instance.hpp"
 
@@ -11,19 +12,6 @@
 
 namespace solver
 {
-
-/// \brief Minimal seam over an incremental lower-bound solver, so the coordinator is testable without
-/// the IPAMIR/UWrMaxSat backend. \ref IncrementalMAFSolver satisfies this via a thin adapter.
-struct IIncrementalLowerBound
-{
-    virtual ~IIncrementalLowerBound() = default;
-    /// \brief Budget (seconds) for the next \ref solve() call.
-    virtual void setTimeOut(double seconds) = 0;
-    /// \brief Run one incremental slice. \return true iff the exact optimum was proven.
-    virtual bool solve() = 0;
-    /// \brief The best (largest) lower bound proven so far, in component units.
-    virtual int getCurrentLowerBound() = 0;
-};
 
 /// \brief Coordinator (not a real solver): time-slices the branching solver (upper bound) against an
 /// incremental lower-bound solver, stopping when the incumbent certifies against floor(a*L)+b.
