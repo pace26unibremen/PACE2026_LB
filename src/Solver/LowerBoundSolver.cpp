@@ -77,10 +77,11 @@ bool LowerBoundSolver::solve()
 
         if (slice.actor == CoordinatorActor::Branch)
         {
-            // A Branch slice that returns Solved OR Exhausted is done, full stop: an exhausted
-            // search has found the TRUE OPTIMUM (always a valid answer to emit on the lower-bound
-            // track), and a Solved slice is either certified or the seeded solution — either way
-            // there is nothing more useful to do than emit it.
+            // A Branch slice that returns Solved OR Exhausted yields a *valid* submission, and only
+            // then may we emit: Exhausted means the search found the TRUE OPTIMUM (k* <= floor(a*k*)+b
+            // always holds), and Solved on this track means the certified early-exit fired
+            // (U <= floor(a*L)+b for a proven L <= k*, so U <= floor(a*k*)+b). SIGTERM is disabled on
+            // the lower-bound track, so Solved can only be the certified case.
             if (runBranchSlice(slice.seconds))
             {
                 branchingSolver->finalize();
@@ -104,13 +105,25 @@ bool LowerBoundSolver::solve()
     {
         if (runBranchSlice(remaining()))
         {
-            break;
+            // Solved (certified) or Exhausted (exact optimum): a provably valid submission — emit it.
+            branchingSolver->finalize();
+            return true;
         }
     }
 
-    branchingSolver->finalize();
-    // The lower-bound track always emits the best incumbent found, whether or not it certified.
-    return not std::isinf(context->bestSolutionWeight);
+    // Budget exhausted without a certified or exact solution. On the lower-bound track a submission
+    // U that violates U <= floor(a*k*)+b is INVALID and disqualifies — so we must NEVER emit an
+    // uncertified incumbent (its size may exceed the true bound, as it does on hard instances where
+    // the branch cannot reach the optimum). Emit only if the incumbent provably certifies against the
+    // proven lower bound; otherwise produce no solution (return false), and startSolver writes nothing.
+    // This matches master, where the branch only ever emits a certified or exact solution and is
+    // otherwise killed at the time limit with no output.
+    if (incumbentCertifies())
+    {
+        branchingSolver->finalize();
+        return true;
+    }
+    return false;
 }
 
 }  // namespace solver
