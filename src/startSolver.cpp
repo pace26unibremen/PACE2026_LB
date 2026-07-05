@@ -39,7 +39,7 @@ static solver::SolverConfig defaultConfig(std::ostream& /*out*/)
 {
     // exactTrack has no plugins — out is unused here but kept for a uniform
     // signature with resolveConfig so callers don't need to special-case it.
-    return solver::SolverConfig::exactTrack();
+    return solver::SolverConfig::lowerBoundTrack();
 }
 
 // ============================================================
@@ -372,13 +372,8 @@ static void printHelp(std::string_view prog)
         << "           Omitting INFILE implies stdout for output as well.\n"
         << "\n"
         << "Options:\n"
-        << "  --track PRESET  Solver preset to use (default: pipeline):\n"
-        << "    pipeline    Full metrics suite, SIGTERM armed.\n"
-        << "                Use for CI runs and the PACE stride harness.\n"
-        << "    exact       No plugins, no SIGTERM. Use for the exact competition track.\n"
-        << "    heuristic   No metrics, SIGTERM armed. Use for the heuristic track.\n"
+        << "  --track PRESET  Solver preset to use (default: lower-bound):\n"
         << "    lower-bound No metrics, SIGTERM armed. Use for the lower-bound track.\n"
-        << "    maxsat      No plugins, no SIGTERM. Use for MaxSAT testing.\n"
         << "  --help, -h  Print this message and exit.\n"
         << "\n"
         << "Stdin / stdout mode:\n"
@@ -393,7 +388,7 @@ static void printHelp(std::string_view prog)
         << "  3. PACE_TRACK in a .env file in the current working directory\n"
         << "  4. defaultConfig() in startSolver.cpp  (compiled-in default)\n"
         << "\n"
-        << "  Accepted values for PACE_TRACK: pipeline, exact, heuristic, maxsat.\n";
+        << "  Accepted values for PACE_TRACK: lower-bound.\n";
 }
 
 /// \brief Map a track name string to a \ref solver::SolverConfig.
@@ -404,14 +399,14 @@ static void printHelp(std::string_view prog)
 /// \throws std::invalid_argument for unknown names.
 static solver::SolverConfig resolveConfig(const std::string& name, std::ostream& out)
 {
-    if (name == "exact")       return solver::SolverConfig::exactTrack();
-    if (name == "heuristic")   return solver::SolverConfig::heuristicTrack();
+    //if (name == "exact")       return solver::SolverConfig::exactTrack();
+    //if (name == "heuristic")   return solver::SolverConfig::heuristicTrack();
     if (name == "lower-bound") return solver::SolverConfig::lowerBoundTrack();
-    if (name == "pipeline")    return solver::SolverConfig::pipeline(out);
-    if (name == "maxsat")     return solver::SolverConfig::maxsatTrack();
+    //if (name == "pipeline")    return solver::SolverConfig::pipeline(out);
+    //if (name == "maxsat")     return solver::SolverConfig::maxsatTrack();
     throw std::invalid_argument(
         "Unknown --track value: \"" + name + "\". "
-        "Valid values: exact, heuristic, pipeline.");
+        "Valid values: lower-bound.");
 }
 
 // ============================================================
