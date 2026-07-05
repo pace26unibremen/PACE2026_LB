@@ -54,6 +54,12 @@ add_executable(LowerBoundCoordinatorTests LowerBoundCoordinatorTests.cpp)
 target_link_libraries(LowerBoundCoordinatorTests PRIVATE Solver Graph Catch2::Catch2WithMain)
 add_test(NAME LowerBoundCoordinatorTests COMMAND $<TARGET_FILE:LowerBoundCoordinatorTests>)
 
+# Regression test for the coordinator's C1 bug: IncrementalMAFSolver must be isolated onto its own
+# instance copy, never sharing the live instance a BranchingSolver mutates in place.
+add_executable(IncrementalMAFSolverIsolationTests IncrementalMAFSolverIsolationTests.cpp)
+target_link_libraries(IncrementalMAFSolverIsolationTests PRIVATE Solver Graph Catch2::Catch2WithMain)
+add_test(NAME IncrementalMAFSolverIsolationTests COMMAND $<TARGET_FILE:IncrementalMAFSolverIsolationTests>)
+
 add_executable(TwoBRuleTests TwoBRuleTests.cpp)
 target_link_libraries(TwoBRuleTests PRIVATE Solver Graph Catch2::Catch2WithMain)
 add_test(NAME TwoBRuleTests COMMAND $<TARGET_FILE:TwoBRuleTests>)

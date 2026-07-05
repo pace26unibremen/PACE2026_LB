@@ -148,7 +148,17 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
         auto [branch, size] = seedFromApproximation(instance);
         branching->seedSolution(std::move(branch), static_cast<float>(size));
 
-        auto sat = std::make_shared<solver::IncrementalMAFSolver>(instance, lowerBoundContext);
+        // The coordinator's branching solver mutates `instance` in place and, on a pause slice,
+        // deliberately leaves it un-unwound mid-branch. The MaxSAT solver reads the live forest through
+        // index maps snapshotted at construction, so it must NOT share that instance — give it its own
+        // deep copy, taken now while `instance` is still pristine (the approximation seed above was
+        // rolled back and the coordinator's branch has not run yet). See IncrementalMAFSolverIsolationTests.
+        auto satInstance = std::make_shared<graph::Instance>();
+        satInstance->reserve(instance->size());
+        for (const auto& forest : *instance)
+            satInstance->push_back(std::make_shared<graph::Forest>(forest->copy()));
+
+        auto sat = std::make_shared<solver::IncrementalMAFSolver>(satInstance, lowerBoundContext);
 
         solver::LowerBoundSolver coordinator(instance, branching, sat);
         solved = coordinator.solve();
