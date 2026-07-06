@@ -18,10 +18,15 @@ namespace solver
 class LowerBoundSolver : public AbstractSolver
 {
   public:
+    /// \param initialLowerBound a certified lower bound L <= k* already known before the coordinator
+    ///        runs (e.g. the 2-/3-approx dual computed in startSolver). It seeds the coordinator's L
+    ///        floor so the incremental SAT — which is typically looser than the dual — can never lower
+    ///        the certified threshold below what the dual already proved.
     LowerBoundSolver(const std::shared_ptr<graph::Instance>& instance,
                      const std::shared_ptr<BranchingSolver>& branchingSolver,
                      const std::shared_ptr<IIncrementalLowerBound>& lowerBoundSolver,
-                     LowerBoundCoordinatorConfig config = LowerBoundCoordinatorConfig::defaults());
+                     LowerBoundCoordinatorConfig config = LowerBoundCoordinatorConfig::defaults(),
+                     long initialLowerBound = 0);
 
     ~LowerBoundSolver() override = default;
 
@@ -32,6 +37,9 @@ class LowerBoundSolver : public AbstractSolver
     std::shared_ptr<IIncrementalLowerBound> lowerBoundSolver;
     std::shared_ptr<Context> context;
     LowerBoundCoordinatorConfig config;
+    /// \brief A certified lower bound known before the run (dual bound); the coordinator's L never
+    /// drops below this, so a looser incremental SAT bound cannot lower the certified threshold.
+    long initialLowerBound;
 
     /// \brief Adopt L into the certified threshold and report whether the incumbent now certifies.
     [[nodiscard]] bool adoptLowerBound(int candidate, int& currentL);

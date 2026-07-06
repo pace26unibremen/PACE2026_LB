@@ -3,7 +3,7 @@
 #include "Solver/Cluster/ClusterSolver.hpp"
 #include "Solver/Cluster/ClusterRange.hpp"
 #include "Solver/Context.hpp"
-#include "Solver/DualLowerBound.hpp"
+#include "Solver/Approximation/DualLowerBound.hpp"
 #include "Solver/LowerBoundSolver.hpp"
 #include "Solver/Plugin/SigtermPlugin.hpp"
 #include "Solver/ReductionSolver.hpp"
@@ -83,15 +83,20 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
     // size is <= this threshold — a provably valid answer, often the approximation seed itself. Only done
     // when a genuine "#a" line was parsed (a >= 1, b >= 0); otherwise the threshold stays at its -1
     // default, which no positive size ever meets, so the search simply never certifies.
+    long lowerBoundL = 0;  // certified dual lower bound (L <= k*); also seeds the coordinator's L floor.
     if (config.track == solver::SolverConfig::Track::LowerBound
         && lowerBoundContext->a >= 1.0 && lowerBoundContext->b >= 0)
     {
-        const long L = solver::computeDual3ApproxLowerBound(*instance);
-        lowerBoundContext->certifiedThreshold = lowerBoundContext->certifiedCeiling(L);
+        // Best certified dual bound: the fast 3-approx dual always, plus the ~2x tighter 2-approx
+        // ("Red-Blue") dual when it finishes within the cap. Both satisfy L <= k*, so max(L2,L3) is
+        // valid and never worse than the 3-approx alone.
+        const auto dualDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+        lowerBoundL = solver::computeCertifiedLowerBound(*instance, dualDeadline);
+        lowerBoundContext->certifiedThreshold = lowerBoundContext->certifiedCeiling(lowerBoundL);
         // Diagnostic (stderr, does not touch the solution stream): the certified lower bound and the
         // acceptance threshold floor(a*L)+b the search may stop at.
         std::clog << "#lb a=" << lowerBoundContext->a << " b=" << lowerBoundContext->b
-                  << " L=" << L << " threshold=" << lowerBoundContext->certifiedThreshold << "\n";
+                  << " L=" << lowerBoundL << " threshold=" << lowerBoundContext->certifiedThreshold << "\n";
     }
 
     // ---- Approximation-seeded branch & bound ------------------------------------------------
@@ -159,7 +164,8 @@ static void runOnStream(std::istream& in, std::ostream& out, solver::SolverConfi
 
         auto sat = std::make_shared<solver::IncrementalMAFSolver>(satInstance, lowerBoundContext);
 
-        solver::LowerBoundSolver coordinator(instance, branching, sat);
+        solver::LowerBoundSolver coordinator(instance, branching, sat,
+                                             solver::LowerBoundCoordinatorConfig::defaults(), lowerBoundL);
         solved = coordinator.solve();
 
         branching->unapplyReductions();

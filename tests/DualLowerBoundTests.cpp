@@ -4,8 +4,9 @@
 #include "../src/Solver/BranchingSolver.hpp"
 #include "../src/Solver/BranchingSolverConfiguration.hpp"
 #include "../src/Solver/Context.hpp"
-#include "../src/Solver/DualLowerBound.hpp"
+#include "../src/Solver/Approximation/DualLowerBound.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <memory>
@@ -53,6 +54,48 @@ TEST_CASE("dual lower bound matches its pinned regression values", "[DualLowerBo
         SECTION(f)
         {
             CHECK(solver::computeDual3ApproxLowerBound(*readTiny(f)) == expected);
+        }
+    }
+}
+
+// Pinned 2-approx (Red-Blue) certified bounds. Validated py==cpp and L2 <= k* on 1000+ exact-checked
+// instances; on the tinies L2 is uniformly >= the 3-approx L3 above and much closer to k*.
+static const std::unordered_map<std::string, long> pinnedL2 = {
+    {"tiny01.nw", 3}, {"tiny02.nw", 1}, {"tiny03.nw", 4}, {"tiny04.nw", 4}, {"tiny05.nw", 2},
+    {"tiny06.nw", 3}, {"tiny07.nw", 6}, {"tiny08.nw", 9}, {"tiny09.nw", 4}, {"tiny10.nw", 6},
+};
+
+TEST_CASE("2-approx and certified lower bounds never exceed k* and dominate the 3-approx",
+          "[DualLowerBound][Tiny][RedBlue]")
+{
+    for (const auto& [f, ks] : kStar)
+    {
+        SECTION(f)
+        {
+            auto inst = readTiny(f);
+            const long l3 = solver::computeDual3ApproxLowerBound(*inst);
+            const long l2 = solver::computeDual2ApproxLowerBound(*inst);
+            const long lc = solver::computeCertifiedLowerBound(*inst);
+            // The non-negotiable invariant: every bound is certified (<= k*) and non-trivial (>= 1).
+            CHECK(l2 >= 1);
+            CHECK(l2 <= ks);
+            CHECK(lc >= 1);
+            CHECK(lc <= ks);
+            // The certified bound is the max of the two duals, so it dominates each.
+            CHECK(lc == std::max(l2, l3));
+            CHECK(lc >= l2);
+            CHECK(lc >= l3);
+        }
+    }
+}
+
+TEST_CASE("2-approx lower bound matches its pinned regression values", "[DualLowerBound][Tiny][RedBlue]")
+{
+    for (const auto& [f, expected] : pinnedL2)
+    {
+        SECTION(f)
+        {
+            CHECK(solver::computeDual2ApproxLowerBound(*readTiny(f)) == expected);
         }
     }
 }

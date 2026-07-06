@@ -10,12 +10,14 @@ namespace solver
 LowerBoundSolver::LowerBoundSolver(const std::shared_ptr<graph::Instance>& instance,
                                    const std::shared_ptr<BranchingSolver>& branchingSolver,
                                    const std::shared_ptr<IIncrementalLowerBound>& lowerBoundSolver,
-                                   LowerBoundCoordinatorConfig config)
+                                   LowerBoundCoordinatorConfig config,
+                                   long initialLowerBound)
     : AbstractSolver(instance),
       branchingSolver(branchingSolver),
       lowerBoundSolver(lowerBoundSolver),
       context(branchingSolver->GetContext()),
-      config(std::move(config))
+      config(std::move(config)),
+      initialLowerBound(initialLowerBound)
 {
 }
 
@@ -43,9 +45,12 @@ bool LowerBoundSolver::solve()
         + std::chrono::duration_cast<clock::duration>(
               std::chrono::duration<double>(config.totalBudgetSeconds - config.safetyMarginSeconds));
 
-    int currentL = 0;
-    // Seed the threshold from whatever the SAT already knows (0 if fresh) so it is never left at -1.
-    // The incumbent is always still infinite here, so the return value is necessarily false.
+    // Start L at the certified dual bound already proven in startSolver (2-/3-approx). The SAT is
+    // typically looser than the dual, so seeding here stops adoptLowerBound from ever lowering the
+    // threshold below what the dual established. certifiedThreshold was already set from this value.
+    int currentL = static_cast<int>(initialLowerBound);
+    // Fold in whatever the SAT already knows (0 if fresh); the incumbent is still infinite here, so the
+    // return value is necessarily false.
     static_cast<void>(adoptLowerBound(lowerBoundSolver->getCurrentLowerBound(), currentL));
 
     auto remaining = [&]() { return std::chrono::duration<double>(hardStop - clock::now()).count(); };

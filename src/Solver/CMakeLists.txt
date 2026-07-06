@@ -2,6 +2,7 @@ file (GLOB solver_source *.cpp)
 file (GLOB solver_header *.hpp)
 
 add_library(Solver ${solver_source})
+add_subdirectory(Approximation)
 target_link_libraries(Solver PRIVATE Graph)
 
 set_target_properties(Solver PROPERTIES
