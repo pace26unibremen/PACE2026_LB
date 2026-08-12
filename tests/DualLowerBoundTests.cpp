@@ -102,6 +102,61 @@ TEST_CASE("2-approx lower bound matches its pinned regression values", "[DualLow
     }
 }
 
+// Instances that made the Red-Blue dual exceed the optimum before the final-component over-credit
+// was removed. Two of them were sent to us by the PACE 2026 organisers, the rest were found by
+// mutating those two. res/lowerbound/expected.tsv lists the true optimum and the value the dual
+// returned before the fix; see res/lowerbound/README.md.
+//
+// These are pinned as equalities: the repaired dual is exactly k* on all of them. Reintroducing the
+// over-credit turns every one of them into k*+1 and fails here.
+struct LowerBoundRegression
+{
+    std::string file;
+    long kStar;
+    long preFixValue;
+};
+
+static std::vector<LowerBoundRegression> readLowerBoundRegressions()
+{
+    std::vector<LowerBoundRegression> out;
+    std::ifstream in(std::string(RES_DIR) + "lowerbound/expected.tsv");
+    REQUIRE(in.is_open());
+    std::string line;
+    while (std::getline(in, line))
+    {
+        if (line.empty() || line[0] == '#')
+            continue;
+        std::istringstream ls(line);
+        LowerBoundRegression r;
+        ls >> r.file >> r.kStar >> r.preFixValue;
+        if (not r.file.empty())
+            out.push_back(r);
+    }
+    return out;
+}
+
+TEST_CASE("Red-Blue dual is exact, and never above k*, on the known counterexamples",
+          "[DualLowerBound][RedBlue][Regression]")
+{
+    const auto cases = readLowerBoundRegressions();
+    REQUIRE(cases.size() >= 26);
+    for (const auto& c : cases)
+    {
+        SECTION(c.file)
+        {
+            auto inst = graph::ReadInstance(std::string(RES_DIR) + "lowerbound/" + c.file);
+            const long l2 = solver::computeDual2ApproxLowerBound(*inst);
+            // The invariant the certified early exit depends on.
+            CHECK(l2 <= c.kStar);
+            // And it is tight here, which is what the over-credit used to break.
+            CHECK(l2 == c.kStar);
+            CHECK(c.preFixValue > c.kStar);  // documents what these instances are for
+            CHECK(solver::computeDual3ApproxLowerBound(*inst) <= c.kStar);
+            CHECK(solver::computeCertifiedLowerBound(*inst) <= c.kStar);
+        }
+    }
+}
+
 TEST_CASE("certifiedCeiling computes floor(a*L)+b without binary-float under-count", "[DualLowerBound][Context]")
 {
     solver::Context ctx;
