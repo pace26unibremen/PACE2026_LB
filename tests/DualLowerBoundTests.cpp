@@ -13,6 +13,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 // Exact optima k* for the tiny instances (same values used by ApproximationTests).
 static const std::unordered_map<std::string, long> kStar = {
@@ -58,11 +59,12 @@ TEST_CASE("dual lower bound matches its pinned regression values", "[DualLowerBo
     }
 }
 
-// Pinned 2-approx (Red-Blue) certified bounds. Validated py==cpp and L2 <= k* on 1000+ exact-checked
-// instances; on the tinies L2 is uniformly >= the 3-approx L3 above and much closer to k*.
+// Pinned 2-approx (Red-Blue) certified bounds. On the tinies L2 is uniformly >= the 3-approx L3
+// above and much closer to k*. These dropped by one when the final-component over-credit was
+// removed (see res/lowerbound/README.md); the previous values were 3,1,4,4,2,3,6,9,4,6.
 static const std::unordered_map<std::string, long> pinnedL2 = {
-    {"tiny01.nw", 3}, {"tiny02.nw", 1}, {"tiny03.nw", 4}, {"tiny04.nw", 4}, {"tiny05.nw", 2},
-    {"tiny06.nw", 3}, {"tiny07.nw", 6}, {"tiny08.nw", 9}, {"tiny09.nw", 4}, {"tiny10.nw", 6},
+    {"tiny01.nw", 2}, {"tiny02.nw", 1}, {"tiny03.nw", 3}, {"tiny04.nw", 3}, {"tiny05.nw", 1},
+    {"tiny06.nw", 2}, {"tiny07.nw", 5}, {"tiny08.nw", 8}, {"tiny09.nw", 3}, {"tiny10.nw", 5},
 };
 
 TEST_CASE("2-approx and certified lower bounds never exceed k* and dominate the 3-approx",

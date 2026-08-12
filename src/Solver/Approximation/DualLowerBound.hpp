@@ -37,8 +37,16 @@ long computeDual3ApproxLowerBound(const graph::Instance& instance);
 /// Like \ref computeDual3ApproxLowerBound it builds a feasible dual solution and emits its objective
 /// L = D+1 = sum(y), so L <= k* on every instance. The Red-Blue construction credits more dual per cut
 /// (it handles a whole minimal incompatible active sibling set R u B via a reformulated dual), giving a
-/// bound that is empirically ~2x tighter than the 3-approx dual (mean L/k* ~0.78) and exact on ~19% of
-/// instances, validated L <= k* with 0 violations on 2500+ exact-checked instances.
+/// bound that is empirically ~2x tighter than the 3-approx dual.
+///
+/// \note This used to return L = k*+1 on some instances, which is not a lower bound and made the
+/// lower-bound track certify and emit suboptimal answers. The cause was that the main loop credited
+/// y = 1 for the final surviving component on the two paths that end the loop while leaves are still
+/// active. That component must not be credited, because the bound is L = D+1 with D = sum(y)-1, so
+/// the "+1" of that conversion already accounts for it. The paper states this only in passing: its
+/// preprocessing step gives a unit of dual to a leaf that is alone in its T2 tree, but only when that
+/// leaf "is not the last active leaf". See the termination block in RedBlueDual.cpp and
+/// res/lowerbound/README.md.
 ///
 /// Only the dual value is needed, so the paper's retroactive merges (Procedures 4b/4c) -- which only
 /// reduce the primal cut count and never change a y-variable -- are skipped. For instances with more

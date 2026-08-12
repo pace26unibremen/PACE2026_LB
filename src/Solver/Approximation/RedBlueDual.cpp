@@ -826,17 +826,21 @@ struct RedBlue2
                 aborted = true;
                 break;
             }
+            // Termination. Neither branch credits a y. The last surviving component is deliberately
+            // never given a dual variable, because the bound is L = D+1 with D = sum(y)-1, so the "+1"
+            // of that conversion already is that component. Crediting it here as well counts it twice
+            // and made this dual return L = k*+1 (see res/lowerbound/README.md). The paper states the
+            // same restriction only in passing: its preprocessing gives a unit of dual to a leaf that
+            // is alone in its T2 tree, but only when that leaf "is not the last active leaf".
             if (active.size() == 1)
             {
-                active.clear();
-                dualSum += 1;  // finalize last leaf
+                active.clear();  // the last active leaf is the final component
                 break;
             }
             std::vector<Label> R, B;
             if (not findMinIncompat(R, B))
             {
-                active.clear();  // remaining active leaves mutually compatible -> one tree
-                dualSum += 1;
+                active.clear();  // remaining active leaves are mutually compatible -> the final component
                 break;
             }
             if (not resolveSet(R))  // Fail
